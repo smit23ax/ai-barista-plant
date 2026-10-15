@@ -70,9 +70,9 @@ SYMBOLS = {
     # ---- F-101: plunge filtration ----
     r"\Delta P": ("pressure drop across the grounds cake (and the mesh, where stated)", "Pa"),
     r"f_p": ("packed-bed friction factor (Ergun)", "1"),
-    r"\mathrm{Re}_b": ("packed-bed Reynolds number rho u d32 / (mu (1 - epsilon))", "1"),
-    r"\Pi_1": ("first dimensionless group: pressure gradient times d32 over rho u^2", "1"),
-    r"\Pi_2": ("second dimensionless group: rho u d32 / mu", "1"),
+    r"\mathrm{Re}_b": ("packed-bed Reynolds number rho u d_s / (mu (1 - epsilon))", "1"),
+    r"\Pi_1": ("first dimensionless group: pressure gradient times d_s over rho u^2", "1"),
+    r"\Pi_2": ("second dimensionless group: rho u d_s / mu", "1"),
     r"u": ("superficial velocity: liquid flow rate / full press area", "m/s"),
     r"u_i": ("interstitial velocity: actual speed of liquid in the pores", "m/s"),
     r"k": ("permeability of the grounds cake", "m^2"),
@@ -82,6 +82,8 @@ SYMBOLS = {
     r"R_h": ("hydraulic radius of the pores: void volume / wetted surface", "m"),
     r"a_v": ("particle surface area per particle volume", "1/m"),
     r"d_{32}": ("Sauter mean diameter (same volume-to-surface ratio as the grind)", "m"),
+    r"d_s": ("effective grain diameter for Ergun: sphericity times d32", "m"),
+    r"\Phi_s": ("sphericity: surface of the equal-volume sphere / real grain surface, 0.75 for coffee", "1"),
     r"d_f": ("diameter of a fine, 30 micrometres", "m"),
     r"w": ("mass fraction of fines in the grind", "1"),
     r"K_K": ("Kozeny constant (shape factor times tortuosity squared), about 5", "1"),
@@ -144,8 +146,10 @@ OVERVIEW = {
         {"title": "The plant in one line",
          "write": r"\text{kettle} \rightarrow \text{press} \rightarrow \text{filter} \rightarrow \text{cup}",
          "say": "Hot water from the kettle goes into the press, the grounds steep, the plunger filters "
-                "them out, and fine particles settle in the cup. Each step is one unit with one main "
-                "equation from our courses: a material balance, an energy balance, Darcy's law and Stokes' law."},
+                "them out, and fine particles settle in the cup. The heart of the project is the plunge: the "
+                "grounds form a packed bed, and the Ergun equation, built from dimensional analysis, says how "
+                "grind size sets the flow. The other units link that to the cup: a material balance, an energy "
+                "balance and Stokes' law."},
         {"title": "Strength (what a TDS meter reads)",
          "write": r"\mathrm{TDS} = \frac{m_l}{m_{bev}}",
          "say": "TDS is total dissolved solids: the mass of coffee dissolved, m_l, over the mass of the drink, "
@@ -192,20 +196,20 @@ DIMENSIONAL = {
     "sign": SIGN_FLOW,
     "dof": {
         "unknowns": ["pressure gradient across the bed, Delta P / L_c"],
-        "equations": ["one unknown relation Delta P / L_c = fn(u, d_32, rho, mu, epsilon), reduced by Buckingham Pi"],
-        "specified": ["flow (superficial velocity u), grind (d_32), liquid (rho, mu), packing (epsilon)"],
+        "equations": ["one unknown relation Delta P / L_c = fn(u, d_s, rho, mu, epsilon), reduced by Buckingham Pi"],
+        "specified": ["flow (superficial velocity u), grain size (d_s), liquid (rho, mu), packing (epsilon)"],
         "result": "6 variables in 3 base dimensions leave 3 dimensionless groups: a friction factor, a Reynolds "
                   "number and the porosity. Any packed bed of any size obeys one curve between them.",
     },
     "steps": [
         {"title": "The question",
-         "write": r"\frac{\Delta P}{L_c} = \text{fn}\left( u,\; d_{32},\; \rho,\; \mu,\; \varepsilon \right)",
+         "write": r"\frac{\Delta P}{L_c} = \text{fn}\left( u,\; d_s,\; \rho,\; \mu,\; \varepsilon \right)",
          "say": "How hard do you have to push liquid through a bed of coffee grounds? The pressure drop per unit "
-                "bed length depends on how fast the liquid moves, u, how big the grains are, d_32, the liquid's "
+                "bed length depends on how fast the liquid moves, u, how big the grains are, d_s, the liquid's "
                 "density rho and viscosity mu, and how loosely the grains pack, the porosity epsilon. I don't "
                 "know the function yet. Dimensional analysis tells me its form before any experiment."},
         {"title": "Dimensions of every variable",
-         "write": r"\left[ \frac{\Delta P}{L_c} \right] = \text{kg m}^{-2}\text{s}^{-2}, \; [u] = \text{m s}^{-1}, \; [d_{32}] = \text{m}, \; [\rho] = \text{kg m}^{-3}, \; [\mu] = \text{kg m}^{-1}\text{s}^{-1}",
+         "write": r"\left[ \frac{\Delta P}{L_c} \right] = \text{kg m}^{-2}\text{s}^{-2}, \; [u] = \text{m s}^{-1}, \; [d_s] = \text{m}, \; [\rho] = \text{kg m}^{-3}, \; [\mu] = \text{kg m}^{-1}\text{s}^{-1}",
          "say": "Write each variable in kilograms, metres and seconds. Pressure is a force per area, newtons per "
                 "square metre, and per metre of bed that's kilograms per metre squared per second squared. "
                 "Porosity is already dimensionless: it's a volume fraction."},
@@ -215,17 +219,17 @@ DIMENSIONAL = {
                 "variables minus the number of base dimensions. Six variables, three dimensions (mass, length, "
                 "time), so three groups. One of them is epsilon itself."},
         {"title": "Repeating variables",
-         "write": r"\text{repeating set: } \rho,\; u,\; d_{32}",
+         "write": r"\text{repeating set: } \rho,\; u,\; d_s",
          "say": "Pick three variables that together contain kilograms, metres and seconds and can't form a group "
                 "by themselves: density, velocity and grain size. Every other variable gets made "
                 "dimensionless with them."},
         {"title": "Group 1: pressure made dimensionless",
-         "write": r"\Pi_1 = \frac{\Delta P}{L_c} \cdot \frac{d_{32}}{\rho u^2}",
+         "write": r"\Pi_1 = \frac{\Delta P}{L_c} \cdot \frac{d_s}{\rho u^2}",
          "say": "rho u squared is a pressure (the kinetic energy per volume). Dividing the pressure gradient times "
                 "a length by it cancels every unit. It compares the pressure lost per grain to the flow's "
                 "kinetic energy, so it's a friction factor."},
         {"title": "Group 2: Reynolds number",
-         "write": r"\Pi_2 = \frac{\rho u d_{32}}{\mu}",
+         "write": r"\Pi_2 = \frac{\rho u d_s}{\mu}",
          "say": "Viscosity made dimensionless with the same three variables gives a Reynolds number based on "
                 "grain size: inertia over viscous forces, exactly as in pipe flow."},
         {"title": "The answer has to look like this",
@@ -233,7 +237,7 @@ DIMENSIONAL = {
          "say": "The physics can only connect the dimensionless groups. So instead of experiments in five "
                 "variables I need one curve, friction factor against Reynolds number, for each porosity."},
         {"title": "Ergun's choice of groups",
-         "write": r"f_p = \frac{\Delta P}{L_c} \frac{d_{32}}{\rho u^2} \frac{\varepsilon^3}{1-\varepsilon}, \quad \mathrm{Re}_b = \frac{\rho u d_{32}}{\mu (1-\varepsilon)}",
+         "write": r"f_p = \frac{\Delta P}{L_c} \frac{d_s}{\rho u^2} \frac{\varepsilon^3}{1-\varepsilon}, \quad \mathrm{Re}_b = \frac{\rho u d_s}{\mu (1-\varepsilon)}",
          "say": "Ergun folded the porosity into the two groups so that data for every porosity collapse onto a "
                 "single curve. These are the bed friction factor f_p and the bed Reynolds number Re_b. The "
                 "porosity factors come from the hydraulic radius of the pores, which is the next unit."},
@@ -264,38 +268,38 @@ ERGUN = {
     "dof": {
         "unknowns": ["pressure gradient Delta P / L_c", "bed Reynolds number Re_b", "bed friction factor f_p"],
         "equations": ["Ergun equation", "definition of Re_b", "definition of f_p"],
-        "specified": ["u from the plunge speed, d_32 from the grind and fines, epsilon, temperature (rho, mu)"],
+        "specified": ["u from the plunge speed, d_s from the grind, fines and grain shape, epsilon, temperature (rho, mu)"],
         "result": "3 unknowns − 3 equations = 0.",
     },
     "steps": [
         {"title": "Slow flow limit (viscous): Kozeny-Carman",
-         "write": r"\frac{\Delta P}{L_c} = 150\, \frac{\mu u (1-\varepsilon)^2}{\varepsilon^3 d_{32}^2}",
+         "write": r"\frac{\Delta P}{L_c} = 150\, \frac{\mu u (1-\varepsilon)^2}{\varepsilon^3 d_s^2}",
          "say": "When the flow is slow, friction on the pore walls dominates, like laminar flow in a pipe. "
                 "Treating the pores as tiny Hagen-Poiseuille tubes gives this (the filtration unit derives it). "
                 "Carman's derivation gives a constant of 180; Ergun fitted 150 to measured beds. The loss is "
                 "linear in u and goes as one over d squared."},
         {"title": "Fast flow limit (inertial): Burke-Plummer",
-         "write": r"\frac{\Delta P}{L_c} = 1.75\, \frac{\rho u^2 (1-\varepsilon)}{\varepsilon^3 d_{32}}",
+         "write": r"\frac{\Delta P}{L_c} = 1.75\, \frac{\rho u^2 (1-\varepsilon)}{\varepsilon^3 d_s}",
          "say": "When the flow is fast, the liquid speeds up and slows down around every grain and loses a fixed "
                 "number of velocity heads per grain, like the minor losses in pipe fittings. That loss goes as "
                 "rho u squared and doesn't depend on viscosity."},
         {"title": "Ergun: add the two losses",
-         "write": r"\frac{\Delta P}{L_c} = 150\, \frac{\mu u (1-\varepsilon)^2}{\varepsilon^3 d_{32}^2} + 1.75\, \frac{\rho u^2 (1-\varepsilon)}{\varepsilon^3 d_{32}}",
+         "write": r"\frac{\Delta P}{L_c} = 150\, \frac{\mu u (1-\varepsilon)^2}{\varepsilon^3 d_s^2} + 1.75\, \frac{\rho u^2 (1-\varepsilon)}{\varepsilon^3 d_s}",
          "say": "Ergun's idea: the two mechanisms act together, so add them. The first term wins at low speed, "
                 "the second at high speed, and in between both matter."},
         {"title": "Make it dimensionless",
          "write": r"f_p = \frac{150}{\mathrm{Re}_b} + 1.75",
-         "say": "Multiply both sides by d_32 epsilon cubed over rho u squared times one minus epsilon. The "
+         "say": "Multiply both sides by d_s epsilon cubed over rho u squared times one minus epsilon. The "
                 "left side becomes f_p, and the right side becomes 150 over Re_b plus 1.75. That's the single "
                 "curve the dimensional analysis promised, now with its shape from physics."},
         {"title": "Which term matters for coffee?",
          "write": r"\frac{\text{inertial}}{\text{viscous}} = \frac{1.75\, \mathrm{Re}_b}{150}",
-         "say": "Divide the two terms. For the standard plunge, u is about 2 millimetres per second and d_32 is "
-                "about 165 micrometres, so Re_b is about 1.3. The inertial term is only about 1.5 percent of the "
+         "say": "Divide the two terms. For the standard plunge, u is about 2 millimetres per second and d_s is "
+                "about 125 micrometres, so Re_b is about 1.0. The inertial term is only about 1.1 percent of the "
                 "loss. The coffee bed is in the viscous (Darcy) regime, and now that's shown with a number "
                 "instead of assumed."},
         {"title": "Grind size in the viscous regime",
-         "write": r"\frac{\Delta P}{L_c} \propto \frac{1}{d_{32}^2}",
+         "write": r"\frac{\Delta P}{L_c} \propto \frac{1}{d_s^2}",
          "say": "In the viscous regime, halving the effective grain size makes the bed four times harder to push "
                 "through. That's why espresso, with a very fine grind, needs a 9 bar pump and a French press "
                 "doesn't."},
@@ -305,6 +309,13 @@ ERGUN = {
                 "15 percent fines, going from an 800 to a 300 micrometre grind only moves d_32 from 165 to 128 "
                 "micrometres. The fines, not the average grind, control the flow, which is why baristas obsess "
                 "over grinder quality."},
+        {"title": "Grains are not spheres: sphericity",
+         "write": r"d_s = \Phi_s\, d_{32}",
+         "say": "Ergun's constants were fitted to beds of near-spherical particles. Coffee grains are irregular, "
+                "and sphericity Phi_s measures that: the surface of a sphere with the grain's volume divided by "
+                "the grain's real surface. Corrochano 2015 measured 0.75 for ground coffee, so the effective "
+                "diameter d_s is three quarters of d_32: about 125 micrometres for the standard grind. More "
+                "surface per volume means more wall friction."},
     ],
     "checks": [
         "Low Re_b: f_p approaches 150/Re_b, the Kozeny-Carman (Darcy) line. High Re_b: f_p approaches 1.75.",
@@ -486,7 +497,7 @@ FILTER = {
                 "and cake thickness, and inversely proportional to permeability k. It's the porous-media "
                 "version of Hagen-Poiseuille."},
         {"title": "Pores as tiny pipes: hydraulic radius",
-         "write": r"R_h = \frac{\varepsilon}{a_v (1-\varepsilon)}, \quad a_v = \frac{6}{d_{32}}",
+         "write": r"R_h = \frac{\varepsilon}{a_v (1-\varepsilon)}, \quad a_v = \frac{6}{d_s}",
          "say": "The hydraulic radius is pore volume over wetted surface. epsilon is the void fraction, and "
                 "a_v is the surface area per particle volume, 6 over d for a sphere."},
         {"title": "Hagen-Poiseuille in a winding pore",
@@ -495,10 +506,11 @@ FILTER = {
                 "squared over 2. The real path L_e winds, with tortuosity tau_t, and the liquid moves faster "
                 "in the pores than u by tau_t over epsilon."},
         {"title": "Kozeny-Carman permeability",
-         "write": r"k = \frac{d_{32}^2\, \varepsilon^3}{36 K_K (1-\varepsilon)^2} = \frac{d_{32}^2\, \varepsilon^3}{180 (1-\varepsilon)^2}",
+         "write": r"k = \frac{d_s^2\, \varepsilon^3}{36 K_K (1-\varepsilon)^2} = \frac{d_s^2\, \varepsilon^3}{180 (1-\varepsilon)^2}",
          "say": "Combine the last two steps and compare with Darcy. The shape factor and tortuosity squared "
                 "make the Kozeny constant K_K of about 5, so 36 times 5 gives 180. Permeability goes as d "
-                "squared: finer grounds are much harder to push through."},
+                "squared: finer grounds are much harder to push through. Ergun later fitted 150 instead of 180 "
+                "to measured beds, and the code uses Ergun's 150."},
         {"title": "Fines and the Sauter mean diameter",
          "write": r"\frac{1}{d_{32}} = \frac{w}{d_f} + \frac{1-w}{d}",
          "say": "Permeability is set by surface area, and fines carry a huge share of it. Just 15 percent "
@@ -506,13 +518,13 @@ FILTER = {
         {"title": "Cake plus mesh in series, then force",
          "write": r"\Delta P = \mu u \left( \frac{L_c}{k} + R_m \right), \quad F_p = \Delta P\, A_c",
          "say": "Like resistors in series, the cake and the mesh add. Pressure times plunger area is the force. "
-                "It's about 2 newtons for the standard recipe. The mesh resistance and porosity are assumed "
+                "It's about 3 newtons for the standard recipe. The mesh resistance and porosity are assumed "
                 "values, so this is an estimate."},
     ],
     "checks": [
         "Halving the plunge time doubles u and so doubles the force: Darcy is linear in velocity.",
         "As epsilon goes to 1 (no grounds), k becomes infinite and the cake adds no resistance.",
-        "Pore Reynolds number is about 0.9, inside Darcy's creeping-flow range.",
+        "Bed Reynolds number Re_b is about 1.0, so Ergun's inertial term is only about 1 percent: Darcy is fine here.",
         "Units: (Pa*s)(m/s)(m)/(m^2) = Pa.",
     ],
     "questions": [

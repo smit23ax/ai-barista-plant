@@ -22,6 +22,7 @@ P_ATM = 101325.0    # atmospheric pressure, Pa
 # ---- Coffee properties (literature) ----
 RHO_SOLID = 1337.0      # intrinsic density of coffee solid, kg/m^3 [C15]
 EPS_PARTICLE = 0.53     # porosity inside a coffee particle, - [C15]
+SPHERICITY = 0.75       # mean sphericity of ground coffee particles, - [C15, image analysis]
 X_EXTRACTABLE = 0.30    # extractable (soluble) mass fraction of roasted coffee, - [M16: 0.28-0.32]
 C_SAT = 212.4           # solubility of coffee solubles in water, kg/m^3 [M16]
 CELL_SIZE = 30e-6       # diameter of one coffee cell, m [M16]
@@ -185,24 +186,25 @@ def sauter_diameter(d, fines_fraction, d_fine=CELL_SIZE):
 
 
 def plunge(d, T, m_coffee=0.015, plunge_time=20.0, fines_fraction=0.15, D_press=0.085, eps_bed=0.40,
-           rho_bulk=400.0, R_mesh=2.0e8, V_liquid=2.3e-4):
+           rho_bulk=400.0, R_mesh=2.0e8, V_liquid=2.3e-4, sphericity=SPHERICITY):
     """Force (N) to push the plunger down in plunge_time (s).
     Ergun's equation through the grounds cake (thickness L_cake, m) in series with the mesh (resistance R_mesh, 1/m):
         dP = (dP/L)_Ergun * L_cake + mu * u * R_mesh,  u = V_liquid / (A * plunge_time) superficial velocity (m/s)
-    Ergun is evaluated with the Sauter diameter. D_press: press inner diameter (m), eps_bed: cake porosity (-),
+    Ergun is evaluated with the equivalent sphere diameter d_s = sphericity * d32 (Sauter diameter). D_press: press inner diameter (m), eps_bed: cake porosity (-),
     rho_bulk: cake bulk density (kg/m^3) [C15: 360-480], V_liquid: liquid pushed through the cake (m^3).
     R_mesh, eps_bed and fines_fraction are ASSUMED values; calibrate them by plunging a real press on a scale."""
     _, mu, _ = water(T)
     A = np.pi * D_press**2 / 4
     L_cake = m_coffee / (rho_bulk * A)
     d32 = sauter_diameter(d, fines_fraction)
-    k = permeability(d32, eps_bed)
+    d_s = sphericity * d32
+    k = permeability(d_s, eps_bed)
     u = V_liquid / (A * plunge_time)
-    erg = ergun(u, d32, eps_bed, T)
+    erg = ergun(u, d_s, eps_bed, T)
     dP_cake = erg["dPdL"] * L_cake
     dP_mesh = mu * u * R_mesh
     return {"force": (dP_cake + dP_mesh) * A, "dP": dP_cake + dP_mesh, "dP_cake": dP_cake,
-            "dP_mesh": dP_mesh, "k": k, "d32": d32, "L_cake": L_cake, "u": u,
+            "dP_mesh": dP_mesh, "k": k, "d32": d32, "d_s": d_s, "L_cake": L_cake, "u": u,
             "Re_b": erg["Re_b"], "f_p": erg["f_p"], "inertial_share": erg["inertial_share"]}
 
 

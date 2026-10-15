@@ -15,6 +15,7 @@ from plant.diagram import plant_svg
 from plant import steps as presenter_steps
 from plant import calibration as cal
 from plant import standards
+from plant import packed_bed as pb
 from plotly.subplots import make_subplots
 from plant.style import COLORS
 
@@ -40,6 +41,12 @@ def calibration_result(grind):
     return {"t": t.tolist(), "y": y.tolist(), "tt": tt.tolist(), "fit": cal.curve(r["p"], tt).tolist(),
             "lo": lo.tolist(), "hi": hi.tolist(), "res": r["residuals"].tolist(), "rms": float(r["rms"]),
             "summary": {k: [float(x) for x in v] for k, v in s.items()}}
+
+
+@st.cache_data(max_entries=64, ttl=3600)
+def grind_sweep(T_water_C, steep_s, ratio, m_coffee_g, preheated, plunge_s, fines):
+    return pb.grind_sweep(list(range(300, 1201, 50)), T_water_C + C2K, steep_s, m_coffee_g / 1000,
+                          m_coffee_g / 1000 * ratio, preheated, plunge_s, fines)
 
 
 @st.cache_data(max_entries=1, ttl=86400)
@@ -114,7 +121,7 @@ values = {
 st.markdown("## ☕ AI BARISTA PLANT")
 st.caption("A French press, modelled and operated like a chemical plant: fluid mechanics, material and energy balances, and an AI operator.")
 
-VIEWS = ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
+VIEWS = ["Plant", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
 view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_visibility="collapsed") or "Plant"
 
 # ---- Plant
@@ -153,24 +160,87 @@ if view == "Trends":
                f"diffusion out of the grains τ_d = {sim['tau_d']:.0f} s. Both grow with grind size, "
                "and τ_d grows as d².")
 
-# ---- Fluid units
-if view == "Fluid units":
+# ---- Packed bed (Ergun)
+if view == "Packed bed":
+    st.markdown("#### F-101 · the grounds cake is a packed bed (Ergun equation)")
+    m = st.columns(5)
+    m[0].metric("d₃₂ (Sauter)", f"{1e6 * plg['d32']:.0f} µm", help="Surface-weighted mean size, including fines.")
+    m[1].metric("d_s (effective)", f"{1e6 * plg['d_s']:.0f} µm", help="Sphericity 0.75 × d₃₂ (Corrochano 2015).")
+    m[2].metric("Re_b", f"{plg['Re_b']:.2f}")
+    m[3].metric("Inertial share", f"{100 * plg['inertial_share']:.1f} %", help="Burke–Plummer term / total Ergun loss.")
+    m[4].metric("Plunge force", f"{plg['force']:.1f} N", help=f"Cake {plg['dP_cake']:.0f} Pa + mesh {plg['dP_mesh']:.0f} Pa, times the press area.")
+
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("#### F-101 · plunge filtration (Darcy's law)")
-        st.markdown(f"Sauter diameter with fines d₃₂ = **{1e6 * plg['d32']:.0f} µm**, permeability k = **{plg['k']:.2e} m²**  \n"
-                    f"Pressure drop: cake **{plg['dP_cake']:.0f} Pa** + mesh **{plg['dP_mesh']:.0f} Pa**, force **{plg['force']:.1f} N**")
-        g = np.linspace(300, 1200, 60)
-        fig = go.Figure(go.Scatter(x=g, y=[ph.plunge(x * 1e-6, T_brew_end, m_coffee=m_coffee / 1000, plunge_time=plunge_s,
-                                                      fines_fraction=fines)["force"] for x in g],
-                                   name="plunge force", line=dict(color=COLORS["coffee"])))
-        fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
-        fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="plunge force (N)", showlegend=True)
+        st.markdown("##### Ergun chart: friction factor vs bed Reynolds number")
+        Re = np.logspace(-2, 4, 200)
+        fig = go.Figure()
+        fig.add_scatter(x=Re, y=pb.ergun_curve(Re), name="Ergun: 150/Re_b + 1.75", line=dict(color=COLORS["coffee"], width=3))
+        fig.add_scatter(x=Re, y=150 / Re, name="viscous limit (Kozeny–Carman)", line=dict(color=COLORS["water"], dash="dash"))
+        fig.add_scatter(x=Re, y=np.full_like(Re, 1.75), name="inertial limit (Burke–Plummer)", line=dict(color=COLORS["warn"], dash="dash"))
+        for b, sym in zip(pb.brewer_points(plg, T_brew_end), ["diamond", "square", "circle"]):
+            live = b["name"].endswith("(live)")
+            fig.add_scatter(x=[b["Re_b"]], y=[b["f_p"]], mode="markers", name=b["name"],
+                            marker=dict(symbol=sym, size=16 if live else 12, color=COLORS["ok"] if live else COLORS["grey"],
+                                        line=dict(color="#0d1117", width=1)))
+        fig.update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-2, 4], yaxis_range=[0, 4],
+                          xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)",
+                          legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                          margin=dict(l=60, r=20, t=20, b=150), height=470)
         st.plotly_chart(fig, width="stretch")
-        st.caption("Kozeny–Carman is known to over-predict coffee-bed permeability (Corrochano et al. 2015), "
-                   "and the mesh resistance and cake porosity are assumed values.")
+        st.caption("Every brewer sits far left, where the viscous term dominates, so pressure drop ∝ μu/d². "
+                   "Espresso and pour-over use typical recipes (assumed values, listed in plant/packed_bed.py); "
+                   "the dots are Ergun evaluated, not measured.")
     with c2:
-        st.markdown("#### T-101 · fines settling (Stokes' law)")
+        st.markdown("##### Check against measured coffee beds (Corrochano 2015)")
+        rows = pd.DataFrame(pb.corrochano_check())
+        fig = go.Figure()
+        for rho_b, sym in zip([360, 400, 480], ["circle", "square", "triangle-down"]):
+            r = rows[rows.rho_bulk == rho_b]
+            fig.add_scatter(x=r.d32_um, y=r.C_eff, mode="markers", name=f"measured, packed to {rho_b} kg/m³",
+                            marker=dict(symbol=sym, size=11, color=COLORS["coffee"]),
+                            error_y=dict(type="data", array=r.C_eff_sd, color=COLORS["grey"]))
+        fig.add_scatter(x=[70, 140], y=[150, 150], mode="lines", name="Ergun's constant, 150", line=dict(color=COLORS["water"], dash="dash"))
+        fig.add_scatter(x=[70, 140], y=[180, 180], mode="lines", name="Carman's constant, 180", line=dict(color=COLORS["grey"], dash="dot"))
+        fig.update_layout(yaxis_type="log", yaxis_range=[2, np.log10(5000)], xaxis_range=[70, 140],
+                          xaxis_title="Sauter diameter d₃₂ (µm)", yaxis_title="constant that fits the data, C_eff (-)",
+                          legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                          margin=dict(l=60, r=20, t=20, b=150), height=470)
+        st.plotly_chart(fig, width="stretch")
+        st.caption(f"Each measured permeability, turned round into the viscous constant it implies: C_eff = d_s²ε³/(k(1−ε)²). "
+                   f"Ergun says 150. Espresso beds need {rows.C_eff.min():.0f}–{rows.C_eff.max():.0f}, so Ergun over-predicts "
+                   f"permeability {rows.ratio.min():.1f}–{rows.ratio.max():.0f}× and the gap grows with grind size. These beds are "
+                   "compressed far below random packing (ε 0.12–0.33). Error bars cover the permeability scatter only; "
+                   "porosity was read off the paper's Fig. 13.")
+
+    st.markdown("##### Grind-size explorer: what grind size does to the plunge and to the cup")
+    sw = grind_sweep(float(T_water), float(steep), float(ratio), float(m_coffee), preheated, float(plunge_s), float(fines))
+    c1, c2 = st.columns(2)
+    fig = go.Figure()
+    fig.add_scatter(x=sw["grind_um"], y=sw["force"], name=f"with {100 * fines:.0f} % fines", line=dict(color=COLORS["coffee"], width=3))
+    fig.add_scatter(x=sw["grind_um"], y=sw["force_no_fines"], name="no fines", line=dict(color=COLORS["water"], dash="dash"))
+    fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
+    fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="plunge force F_p (N)", yaxis_rangemode="tozero",
+                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                      margin=dict(l=60, r=20, t=20, b=120), height=380)
+    c1.plotly_chart(fig, width="stretch")
+    fig = go.Figure()
+    fig.add_hrect(y0=100 * ph.EY_RANGE[0], y1=100 * ph.EY_RANGE[1], fillcolor=COLORS["ok"], opacity=0.12, line_width=0)
+    fig.add_scatter(x=sw["grind_um"], y=[100 * e for e in sw["EY"]], name="extraction yield EY", line=dict(color=COLORS["coffee"], width=3))
+    fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
+    fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="extraction yield EY (%)",
+                      yaxis_range=[5, 32],
+                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                      margin=dict(l=60, r=20, t=20, b=120), height=380)
+    c2.plotly_chart(fig, width="stretch")
+    i_lo, i_hi = 0, len(sw["grind_um"]) - 1
+    st.caption(f"Going from {sw['grind_um'][i_hi]:.0f} to {sw['grind_um'][i_lo]:.0f} µm changes extraction from "
+               f"{100 * sw['EY'][i_hi]:.0f} % to {100 * sw['EY'][i_lo]:.0f} % but the plunge force only from "
+               f"{sw['force'][i_hi]:.1f} to {sw['force'][i_lo]:.1f} N, because the fines set d₃₂ and so the flow. "
+               "About 1 N of every force is the mesh, which doesn't depend on grind. "
+               "The green band is the SCA extraction target (18–22 %). Same recipe as the control panel.")
+
+    with st.expander("T-101 · fines settling in the cup (Stokes' law)"):
         st.markdown(f"30 µm fines: v_t = **{1000 * settle['v']:.2f} mm/s**, Re_p = **{settle['Re_p']:.3f}**, "
                     f"settle 8 cm in **{settle['t_settle']:.0f} s**")
         d_f = np.linspace(10e-6, 300e-6, 100)

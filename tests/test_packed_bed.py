@@ -1,0 +1,47 @@
+import numpy as np
+
+from plant import packed_bed as pb, physics as ph
+
+STD = ph.plunge(800e-6, 341.0)
+
+
+def test_brewers_sit_on_ergun_curve_in_viscous_regime():
+    pts = pb.brewer_points(STD, 341.0)
+    assert [p["name"] for p in pts] == ["Espresso", "Pour-over", "French press (live)"]
+    for p in pts:
+        assert np.isclose(p["f_p"], pb.ergun_curve(p["Re_b"]), rtol=1e-12)
+        assert p["Re_b"] < 10 and p["inertial_share"] < 0.05
+    # espresso is the finest, slowest bed: lowest Re_b
+    assert pts[0]["Re_b"] < pts[1]["Re_b"] < pts[2]["Re_b"]
+
+
+def test_espresso_recipe_velocity():
+    # 36 g in 27 s through a 58 mm basket is about 0.5 mm/s
+    assert round(1000 * pb.brewer_points(STD, 341.0)[0]["u"], 1) == 0.5
+
+
+def test_corrochano_inputs_copied():
+    assert pb.C15["d32_m"] == [79.73e-6, 101.60e-6, 112.86e-6, 131.36e-6]
+    assert pb.C15["k_m2"][3][1] == 4.38e-13
+    eps = np.array(pb.C15["eps_bed"])
+    assert eps.min() >= 0.11 and eps.max() <= 0.33          # paper's text: all lie in 0.12-0.33
+    assert np.all(np.diff(eps, axis=1) < 0)                  # denser packing -> lower porosity, every grind
+
+
+def test_corrochano_check():
+    rows = pb.corrochano_check()
+    assert len(rows) == 12
+    for r in rows:
+        assert np.isclose(r["C_eff"], 150 * r["ratio"])     # identity: C_eff / 150 = k_ergun / k_measured
+    ratio = {g: np.mean([r["ratio"] for r in rows if r["grind"] == g]) for g in "ABCD"}
+    assert all(v > 1 for v in ratio.values())               # Ergun always over-predicts, as the paper found
+    assert ratio["A"] < ratio["B"] < ratio["C"] < ratio["D"] # and the gap grows with grind size
+    assert round(min(r["ratio"] for r in rows), 1) == 1.9 and round(max(r["ratio"] for r in rows)) == 16
+
+
+def test_grind_sweep_trade_off():
+    sw = pb.grind_sweep([300, 600, 900, 1200], 366.15, 240, 0.015, 0.25, False, 20, 0.15)
+    assert np.all(np.diff(sw["EY"]) < 0) and np.all(np.diff(sw["force"]) < 0)
+    assert np.all(np.array(sw["force_no_fines"]) < np.array(sw["force"]))
+    # the cup changes a lot, the plunge only a little: EY falls by more than half, force by less than half
+    assert sw["EY"][-1] / sw["EY"][0] < 0.5 and sw["force"][-1] / sw["force"][0] > 0.5

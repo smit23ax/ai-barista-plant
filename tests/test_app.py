@@ -16,7 +16,7 @@ def test_app_runs_a_batch_and_an_ai_batch():
 
 def test_every_view_renders():
     at = AppTest.from_file("../app.py", default_timeout=120).run()
-    for view in ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]:
+    for view in ["Plant", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]:
         at.segmented_control[0].set_value(view).run()
         assert not at.exception, view
 
