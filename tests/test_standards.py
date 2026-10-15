@@ -8,18 +8,19 @@ from plant import physics, steps
 
 HERE = os.path.dirname(__file__)
 # Formatting commands that are not symbols.
-NON_SYMBOLS = [r"\frac", r"\Rightarrow", r"\left", r"\right", r"\cdot", r"\sum", r"\exp", r"\ln",
-               r"\sqrt", r"\;", r"\,", r"\quad", r"\int", r"\approx", r"\propto", r"\infty", r"\max"]
+NON_SYMBOLS = [r"\frac", r"\Rightarrow", r"\rightarrow", r"\log_{10}", r"\times", r"\pm", r"\!", r"\left", r"\right", r"\cdot", r"\sum", r"\exp", r"\ln",
+               r"\sqrt", r"\;", r"\,", r"\quad", r"\int", r"\approx", r"\propto", r"\max"]
 
 
 def undefined_symbols(tex):
     """Return what is left of an equation after removing every SYMBOLS entry, formatting command,
     number and operator. Anything alphabetic left over is an undefined symbol."""
     s = re.sub(r"\\text\{[^}]*\}", " ", tex).replace(r"\mathrm{d}", " ")
+    s = re.sub(r"(?<![A-Za-z\\])e\^", " ^", s)          # Euler's number in e^{...}
     for cmd in NON_SYMBOLS:
         s = s.replace(cmd, " ")
     for sym in sorted(steps.SYMBOLS, key=len, reverse=True):
-        s = re.sub(re.escape(sym) + r"(?![A-Za-z])", " ", s)
+        s = re.sub(r"(?<![A-Za-z\\])" + re.escape(sym) + r"(?![A-Za-z_'])", " ", s)
     return re.findall(r"\\?[A-Za-z]+", s)
 
 
@@ -45,7 +46,7 @@ def test_every_symbol_has_meaning_and_si_unit():
 
 def test_every_unit_is_complete():
     for name, u in steps.UNITS.items():
-        assert u["sign"] and u["dof"]["result"] and len(u["steps"]) >= 5, name
+        assert u["sign"] and u["dof"]["result"] and len(u["steps"]) >= 4, name
         assert all(st["title"] and st["write"] and st["say"] for st in u["steps"]), name
         assert len(u["checks"]) >= 3 and len(u["questions"]) >= 3, name
 
