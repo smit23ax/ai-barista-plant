@@ -1,0 +1,7 @@
+AI Barista Plant - progress log (resume point for a fresh session)
+2026-10-15
+- Plan v3 approved by alex: Streamlit app, GitHub repo ai-barista-plant (pending alex connecting GitHub), dark control-room look.
+- plant/physics.py done: water props (CoolProp), pump/line/Colebrook/NPSH, extraction+cooling ODE, stirring, plunge (Darcy+KC with Sauter d32), Stokes settling, Torricelli. 14 tests pass.
+- plant/ai.py: GP on TDS and EY, acquisition = P(in SCA box). Benchmark 20 seeds, budget 12:
+  AI 20/20 hit (median 6 batches), random 9/20 (median 10), one-factor-at-a-time 6/20 (median 10).
+- Next: diagram.py (SVG P&ID), app.py (Streamlit tabs), AppTest, derivations.html (KaTeX), study guide, deploy.
