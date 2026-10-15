@@ -47,6 +47,11 @@ out.append('<h2>Sources</h2><ul>'
            'ground coffee in packed beds, J. Food Eng. 150, 106–116: coffee solid density, particle porosity, '
            'sphericity, bulk density, measured bed permeability, grind size and porosity (Tables 1–2, Fig. 13) '
            'used for the Ergun check, measured Re_p 0.04–4.</li>'
+           '<li>Cameron et al. (2020), Systematically improving espresso: insights from mathematical modeling and '
+           'experiment, Matter 2, 631–648: measured grind-size distributions (Fig. 2B) and extraction yield vs '
+           'grind setting (Fig. 4), digitized from vector figures.</li>'
+           '<li>Uman et al. (2016), The effect of bean origin and temperature on grinding roasted coffee, Sci. Rep. 6, '
+           '24483: bimodal grind distributions, fines surface-area mode 27 µm.</li>'
            '<li>SCAA Golden Cup brewing control chart: strength 1.15–1.35 %, extraction 18–22 %.</li>'
            '<li>Water properties: CoolProp (IAPWS-95).</li></ul>')
 

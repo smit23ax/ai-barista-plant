@@ -83,3 +83,30 @@ def collapse_data(T, u=np.logspace(-4, 0, 60)):
     In dimensional form (dP/L vs u) the beds give three separate curves; as f_p vs Re_b they fall on one.
     The collapse here is by construction (it's Ergun); Ergun's 1952 point was that measured beds collapse."""
     return [{"label": lab, "u": u, **physics.ergun(u, d_s, eps, T)} for lab, d_s, eps in COLLAPSE_BEDS]
+
+
+C20 = json.loads((Path(__file__).resolve().parents[1] / "data" / "cameron2020.json").read_text())
+U16 = json.loads((Path(__file__).resolve().parents[1] / "data" / "uman2016.json").read_text())
+FINES_CUTOFF = 100e-6   # fines / boulders boundary used by Cameron et al. (2020), m
+
+
+def psd_summary(grind_setting):
+    """Sauter diameter d32 (m), fines volume fraction (-) and fines share of the surface (-) for one measured
+    volume distribution from Cameron et al. (2020) Fig. 2B. The curve is volume percent per log10 interval, so
+    the volume fraction in a size range is the area under it on a log axis; surface per volume goes as 1/d.
+        d32 = 1 / integral( w / d ),   w = normalised volume density on log10(d)"""
+    c = C20["psd"][grind_setting]
+    lx = np.log10(np.array(c["d_um"]) * 1e-6)
+    g = np.linspace(lx.min(), lx.max(), 400)
+    w = np.interp(g, lx, c["vol_pct"])
+    w = w / np.trapezoid(w, g)
+    d = 10**g
+    fine = g <= np.log10(FINES_CUTOFF)
+    surface = np.trapezoid(w / d, g)
+    return {"d32": 1 / surface, "fines_volume": np.trapezoid(w[fine], g[fine]),
+            "fines_surface": np.trapezoid((w / d)[fine], g[fine]) / surface}
+
+
+def model_fines_surface_share(d, fines_fraction, d_fine=physics.CELL_SIZE):
+    """Share of the surface carried by fines in the model's two-size grind (-): (w/d_f) / (w/d_f + (1-w)/d)."""
+    return (fines_fraction / d_fine) / (fines_fraction / d_fine + (1 - fines_fraction) / d)

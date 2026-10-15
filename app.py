@@ -266,6 +266,46 @@ if view == "Packed bed":
                "About 1 N of every force is the mesh, which doesn't depend on grind. "
                "The green band is the SCA extraction target (18–22 %). Same recipe as the control panel.")
 
+    st.markdown("##### Real grinds: what the fines look like, and where finer stops helping")
+    c1, c2 = st.columns(2)
+    fig = go.Figure()
+    summ = {g: pb.psd_summary(g) for g in ["2.5", "2.0", "1.5", "1.0"]}
+    for g, col in zip(summ, [COLORS["water"], COLORS["ok"], COLORS["warn"], COLORS["coffee"]]):
+        c = pb.C20["psd"][g]
+        fig.add_scatter(x=c["d_um"], y=c["vol_pct"], mode="lines", line=dict(color=col, width=2),
+                        name=f"setting {g}: d₃₂ {1e6 * summ[g]['d32']:.0f} µm, {100 * summ[g]['fines_volume']:.0f} % fines")
+    fig.add_vline(x=100, line=dict(color=COLORS["grey"], dash="dot"))
+    fig.update_layout(xaxis_type="log", xaxis_range=[0, np.log10(2000)], yaxis_range=[0, 22],
+                      xaxis_title="particle diameter (µm)", yaxis_title="volume percent (%)",
+                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                      margin=dict(l=60, r=20, t=20, b=150), height=430)
+    c1.plotly_chart(fig, width="stretch")
+    c1.caption(f"Measured espresso grinds (Cameron et al. 2020, Fig. 2B; finer setting = smaller number). Two families: "
+               f"fines below 100 µm and boulders. Grinding finer adds fines of the same size. Fines are "
+               f"{100 * min(v['fines_volume'] for v in summ.values()):.0f}–{100 * max(v['fines_volume'] for v in summ.values()):.0f} % "
+               f"of the volume but {100 * min(v['fines_surface'] for v in summ.values()):.0f}–{100 * max(v['fines_surface'] for v in summ.values()):.0f} % "
+               f"of the surface, so d₃₂ = {1e6 * min(v['d32'] for v in summ.values()):.0f}–{1e6 * max(v['d32'] for v in summ.values()):.0f} µm, "
+               "close to Corrochano's 80–131 µm from a different lab. Uman et al. (2016) found the fines' surface peak at 27 µm, "
+               f"close to the 30 µm fines in this model, whose assumed {100 * fines:.0f} % fines carry "
+               f"{100 * pb.model_fines_surface_share(grind * 1e-6, fines):.0f} % of the surface.")
+    c20 = pb.C20
+    fig = go.Figure()
+    fig.add_vrect(x0=1.0, x1=1.7, fillcolor=COLORS["alarm"], opacity=0.10, line_width=0)
+    fig.add_scatter(x=c20["grind_setting"], y=c20["EY_pct"], mode="lines+markers", name="measured EY (±1 sd)",
+                    line=dict(color=COLORS["coffee"], dash="dash"), marker=dict(size=11),
+                    error_y=dict(type="data", array=c20["EY_sd_pct"], color=COLORS["grey"]))
+    fig.add_scatter(x=[None], y=[None], mode="markers", name="finer than 1.7: partly clogged, uneven flow",
+                    marker=dict(symbol="square", size=12, color=COLORS["alarm"], opacity=0.3))
+    fig.update_layout(xaxis_range=[1.0, 2.4], yaxis_range=[20, 23.6], xaxis_title="grinder setting (smaller = finer)",
+                      yaxis_title="extraction yield EY (%)",
+                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                      margin=dict(l=60, r=20, t=20, b=150), height=430)
+    c2.plotly_chart(fig, width="stretch")
+    c2.caption("Measured espresso extraction (Cameron et al. 2020, Fig. 4B, 6 bar). A uniform-bed model, like the grind "
+               "explorer above, says finer always extracts more. The data agree down to setting 1.7, then extraction falls: "
+               "with too many fines the bed clogs unevenly and water channels through cracks. That's the limit of the "
+               "uniform packed-bed assumption, and where Ergun stops describing the real bed.")
+
     with st.expander("T-101 · fines settling in the cup (Stokes' law)"):
         st.markdown(f"30 µm fines: v_t = **{1000 * settle['v']:.2f} mm/s**, Re_p = **{settle['Re_p']:.3f}**, "
                     f"settle 8 cm in **{settle['t_settle']:.0f} s**")

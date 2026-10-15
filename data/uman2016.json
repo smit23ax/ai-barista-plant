@@ -1,0 +1,25 @@
+{
+ "source": "Uman, Colonna-Dashwood, ..., Hendon (2016) The effect of bean origin and temperature on grinding roasted coffee. Sci. Rep. 6, 24483.",
+ "what": "Four single-origin coffees ground on an EK43 (espresso setting), laser diffraction.",
+ "text_facts": {
+  "fines_cutoff_um": [
+   69.6,
+   76.4
+  ],
+  "fines_cutoff_definition": "diameter below which 99 % of particles by number lie",
+  "surface_area_modes_um": [
+   27.4,
+   27.4
+  ],
+  "boulder_volume_modes_um": [
+   282.1,
+   256.9
+  ],
+  "number_modes_um": [
+   14.3,
+   13.0
+  ],
+  "finding": "Distributions are bimodal; fine particulates contribute the majority of the accessible surface area; origin and processing do not change the distribution; grinding cold narrows it."
+ },
+ "provenance": "Copied from the text and Fig. 3 caption (modes i-vi)."
+}

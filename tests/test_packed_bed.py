@@ -60,3 +60,22 @@ def test_corrochano_re_range_is_viscous():
     lo, hi = pb.C15_RE_RANGE
     assert (lo, hi) == (0.04, 4.0)
     assert 1.75 * hi / 150 < 0.05     # inertial share stays under 5 % across their whole range
+
+
+def test_cameron_fig4_and_psd():
+    c = pb.C20
+    assert len(c["grind_setting"]) == len(c["EY_pct"]) == len(c["shot_time_s"]) == 7
+    i = int(np.argmax(c["EY_pct"]))
+    assert c["grind_setting"][i] == 1.7                          # the paper's peak
+    assert np.all(np.diff(c["shot_time_s"]) < 0)                 # coarser -> faster shot
+    s = {g: pb.psd_summary(g) for g in ["2.5", "2.0", "1.5", "1.0"]}
+    fines = [s[g]["fines_volume"] for g in ["2.5", "2.0", "1.5", "1.0"]]
+    d32 = [s[g]["d32"] for g in ["2.5", "2.0", "1.5", "1.0"]]
+    assert np.all(np.diff(fines) > 0) and np.all(np.diff(d32) < 0)   # finer setting: more fines, smaller d32
+    assert 85e-6 < min(d32) and max(d32) < 145e-6                    # same range as Corrochano's 80-131 um
+    assert all(v["fines_surface"] > 0.6 for v in s.values())          # fines carry most of the surface
+
+
+def test_model_fines_surface_share():
+    assert round(pb.model_fines_surface_share(800e-6, 0.15), 2) == 0.82
+    assert pb.model_fines_surface_share(800e-6, 0.0) == 0.0

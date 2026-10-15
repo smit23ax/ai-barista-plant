@@ -359,7 +359,8 @@ ERGUN = {
         ("What breaks first?",
          "The uniform-bed assumption: channelling (liquid finds a crack), the bed compressing as you push "
          "(Corrochano measured 0 to 31 percent consolidation under flow), and fines migrating to block the "
-         "mesh. So push slow and steady."),
+         "mesh. So push slow and steady. Cameron 2020 saw it in espresso: extraction peaks and then falls as "
+         "the grind gets finer, because the bed clogs unevenly."),
         ("How would you get into the inertial regime?",
          "A much faster flow or bigger particles, for example water through gravel or a catalyst bed in a "
          "reactor. Coffee is always near the viscous end."),

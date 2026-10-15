@@ -29,7 +29,7 @@
 <h3>12. What does grind size do to the pressure drop?</h3>
 <p>In the viscous regime \(\Delta P/L_c \propto 1/d_s^2\): halve the grain size and the bed is four times harder to push. That's why a small grinder change can choke an espresso shot [§3].</p>
 <h3>13. Why the Sauter diameter, and why do fines matter so much?</h3>
-<p>Pressure drop depends on surface area per volume, and \(d_{32}\) has the same volume-to-surface ratio as the grind. Fines carry most of the surface: with 15 % fines at 30 µm, going from an 800 to a 300 µm grind only moves \(d_{32}\) from 165 to 128 µm. In the app's grind explorer, 1200 → 300 µm changes extraction from 11 % to 28 % but plunge force only from 2.5 to 3.9 N [§3, Packed bed view].</p>
+<p>Pressure drop depends on surface area per volume, and \(d_{32}\) has the same volume-to-surface ratio as the grind. Fines carry most of the surface: with 15 % fines at 30 µm, going from an 800 to a 300 µm grind only moves \(d_{32}\) from 165 to 128 µm. In the app's grind explorer, 1200 → 300 µm changes extraction from 11 % to 28 % but plunge force only from 2.5 to 3.9 N. Measured grinds agree: in Cameron et al. (2020), fines below 100 µm are 16–28 % of the volume but about 70 % of the surface, giving \(d_{32}\) of 93–137 µm; Uman et al. (2016) found the fines' surface peak at 27 µm, close to the 30 µm used in the model [§3, Packed bed view].</p>
 <h3>14. Coffee grounds aren't spheres.</h3>
 <p>Right. I use \(d_s = \Phi_s d_{32}\) with sphericity \(\Phi_s = 0.75\), measured by Corrochano et al. (2015) [§3].</p>
 <h3>15. Is Ergun accurate for coffee?</h3>
@@ -37,7 +37,7 @@
 <h3>16. How do you know the porosity?</h3>
 <p>I don't measure it: 0.40 is assumed for the loose press cake, and it's the biggest uncertainty. Force scales as \((1-\varepsilon)^2/\varepsilon^3\), so 0.35 would raise the cake force 1.75 times and 0.45 would lower it to 0.59 times [§3].</p>
 <h3>17. What breaks first?</h3>
-<p>The uniform-bed assumption: channelling (the liquid finds a crack), the bed compressing as you push (Corrochano measured 0 to 31 % consolidation under flow, and \(\varepsilon\) from 0.40 to 0.30 makes the bed 3.2 times harder to push), and fines migrating to block the mesh. So push slow and steady [§3].</p>
+<p>The uniform-bed assumption: channelling (the liquid finds a crack), the bed compressing as you push (Corrochano measured 0 to 31 % consolidation under flow, and \(\varepsilon\) from 0.40 to 0.30 makes the bed 3.2 times harder to push), and fines migrating to block the mesh. So push slow and steady. Cameron et al. (2020) measured this for espresso: extraction rises as the grind gets finer down to a grinder setting of 1.7, then falls, because the bed clogs unevenly and water channels [§3, Packed bed view].</p>
 <h3>18. Hot or cold water: does it matter for the plunge?</h3>
 <p>Yes, through viscosity only. Water at 20 °C is 2.4 times more viscous than at the 68 °C plunge, so a cold plunge needs 2.4 times the cake pressure [§3].</p>
 
