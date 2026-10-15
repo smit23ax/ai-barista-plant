@@ -16,3 +16,10 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - app.py: Presenter view (teleprompter, Back/Next via callbacks, timer, Grill-me toggle, diagram highlight via plant_svg(highlight=tag)).
 - Verified: 38/38 tests pass; screenshots at 1400 px and 390 px, no exceptions. Fixed a negative-timer display bug found in the screenshot.
 - Next: convert the remaining units, Moroney calibration, speaking script.
+
+## 2026-10-15 plan v4, iteration 2 (all units + scope trim)
+- All units written in Write/Say format (commit e53b152 has the full 10-unit version).
+- alex: keep it detailed but not too extensive. Cut pump/pipe flow, NPSH, stirrer, carafe draining from physics, app, diagram, steps, tests and guides. Kept: overview/DOF, extraction, energy balance, plunge filtration, Stokes, AI.
+- docs/derivations.html is now generated from plant/steps.py (scripts/build_guide.py), 47 steps, 145 KaTeX expressions. Study guide trimmed to 27 questions.
+- New tests: unused-symbol check, quoted Say numbers match the model. 70 tests pass. Every presenter equation screenshot-checked (46, before the C/T0 split); a long T0 equation was split into two steps.
+- Next: Moroney 2016 calibration, speaking script.

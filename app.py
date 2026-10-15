@@ -27,19 +27,6 @@ def simulate(grind_um, T_water_C, steep_s, ratio, m_coffee_g, preheated):
     return {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in sim.items()}
 
 
-@st.cache_data(max_entries=64, ttl=3600)
-def pump_curves(T_water_C, D_mm, L_m, K_total):
-    T = T_water_C + C2K
-    Q = np.linspace(2e-6, 1.95e-4, 120)
-    sys_H = []
-    for q in Q:
-        try:
-            sys_H.append(ph.transfer_line(q, T, D=D_mm / 1000, L=L_m, K_total=K_total)["H"])
-        except ValueError:          # transition region: no reliable friction factor, leave a gap
-            sys_H.append(None)
-    return Q.tolist(), ph.pump_head(Q).tolist(), sys_H
-
-
 def load_benchmark():
     path = Path(__file__).parent / "plant" / "benchmark.json"
     return json.loads(path.read_text()) if path.exists() else None
@@ -61,7 +48,6 @@ with st.sidebar:
         m_coffee = st.slider("Coffee dose m_c (g)", 10.0, 30.0, 15.0, 0.5)
         preheated = st.checkbox("Preheat press with hot water", value=False)
         st.caption("Fluid unit settings")
-        stir_rpm = st.slider("Stirrer speed N (rpm)", 10, 600, 180, 10)
         plunge_s = st.slider("Plunge time t_p (s)", 3, 60, 20, 1)
         fines = st.slider("Fines mass fraction w_f (-)", 0.0, 0.40, 0.15, 0.01)
         run = st.form_submit_button("▶ RUN BATCH", type="primary", width="stretch")
@@ -72,7 +58,7 @@ if run:
     rng = np.random.default_rng(st.session_state.seed)
     st.session_state.seed += 1
     meas = ai.run_batch(setpoints, rng, m_coffee=m_coffee / 1000, check_bounds=False, preheated=preheated)
-    bar = st.progress(0.0, text="Batch running: heating, pumping, steeping…")
+    bar = st.progress(0.0, text="Batch running: pouring, steeping, plunging…")
     for i in range(20):                       # short visual run so the operator sees the batch progress
         time.sleep(0.05)
         bar.progress((i + 1) / 20, text=f"Batch running: t = {steep * (i + 1) / 20:.0f} s of {steep} s")
@@ -88,29 +74,20 @@ if run:
 T_K = T_water + C2K
 sim = simulate(float(grind), float(T_water), float(steep), float(ratio), float(m_coffee), preheated)
 T_brew_end = sim["T"][-1]
-Q_op = ph.operating_point(T_K)
-line = ph.transfer_line(Q_op, T_K)
-npsh_a, npsh_r = ph.npsh_available(T_K, Q_op), ph.npsh_required(Q_op)
-stir = ph.stirring(stir_rpm / 60, sim["T0"])
 plg = ph.plunge(grind * 1e-6, T_brew_end, m_coffee=m_coffee / 1000, plunge_time=plunge_s, fines_fraction=fines)
 settle = ph.settling(ph.CELL_SIZE, T_brew_end)
-h_carafe = (m_coffee / 1000 * ratio / 1000) / (np.pi * 0.085**2 / 4)
-drain = ph.drain_time(h_carafe)
 PLUG_LIMIT_N = 30.0
 alarms = []
-if npsh_a < npsh_r:
-    alarms.append(("P-101 CAVITATION", f"NPSH available {npsh_a:.2f} m < required {npsh_r:.2f} m. Water is too close to boiling."))
 if plg["force"] > PLUG_LIMIT_N:
     alarms.append(("F-101 FILTER PLUGGED", f"Plunge force {plg['force']:.0f} N > {PLUG_LIMIT_N:.0f} N. Grind is too fine or has too many fines."))
 if not ph.in_target(sim["TDS"], sim["EY"]):
     alarms.append(("R-101 OFF-SPEC", "Predicted cup is outside the SCA ideal box (strength 1.15–1.35 %, extraction 18–22 %)."))
 
 values = {
-    "T_kettle": f"{T_water:.1f} °C", "Q_pump": f"{Q_op * 6e4:.1f} L/min", "H_pump": f"{line['H']:.2f} m",
-    "npsh": f"{npsh_a - npsh_r:+.2f} m", "cav_alarm": npsh_a < npsh_r, "grind": f"{grind} µm",
+    "T_kettle": f"{T_water:.1f} °C", "grind": f"{grind} µm",
     "T_brew": f"{T_brew_end - C2K:.1f} °C", "TDS": f"{100 * sim['TDS']:.2f} %", "EY": f"{100 * sim['EY']:.1f} %",
-    "stir_Re": f"{stir['Re']:.1e}", "plunge_F": f"{plg['force']:.1f} N", "plug_alarm": plg["force"] > PLUG_LIMIT_N,
-    "settle_t": f"{settle['t_settle']:.0f} s", "drain_t": f"{drain:.1f} s", "in_box": ph.in_target(sim["TDS"], sim["EY"]),
+    "plunge_F": f"{plg['force']:.1f} N", "plug_alarm": plg["force"] > PLUG_LIMIT_N,
+    "settle_t": f"{settle['t_settle']:.0f} s", "in_box": ph.in_target(sim["TDS"], sim["EY"]),
 }
 
 # ---------------------------------------------------------------- layout
@@ -158,57 +135,24 @@ if view == "Trends":
 
 # ---- Fluid units
 if view == "Fluid units":
-    st.markdown("#### P-101 · pump and transfer line")
-    c1, c2 = st.columns([2, 1])
-    D_mm = c2.slider("Pipe inner diameter D (mm)", 5.0, 15.0, 8.0, 0.5)
-    L_m = c2.slider("Pipe length L (m)", 0.5, 5.0, 1.5, 0.1)
-    K_tot = c2.slider("Sum of fitting loss coefficients ΣK (-)", 0.0, 10.0, 2.6, 0.1)
-    Qs, pumpH, sysH = pump_curves(T_water, D_mm, L_m, K_tot)
-    fig = go.Figure()
-    fig.add_scatter(x=np.array(Qs) * 6e4, y=pumpH, name="pump curve", line=dict(color=COLORS["water"]))
-    fig.add_scatter(x=np.array(Qs) * 6e4, y=sysH, name="system curve", line=dict(color=COLORS["warn"]))
-    try:
-        q_op = ph.operating_point(T_K, D=D_mm / 1000, L=L_m, K_total=K_tot)
-        lop = ph.transfer_line(q_op, T_K, D=D_mm / 1000, L=L_m, K_total=K_tot)
-        fig.add_scatter(x=[q_op * 6e4], y=[lop["H"]], mode="markers", name="operating point",
-                        marker=dict(size=12, color=COLORS["ok"]))
-        c2.markdown(f"Q = **{q_op * 6e4:.2f} L/min**, V = **{lop['V']:.2f} m/s**  \nRe = **{lop['Re']:.3g}**, "
-                    f"f = **{lop['f']:.4f}**  \nfriction head h_f = **{lop['h_f']:.2f} m**, fittings h_m = **{lop['h_m']:.2f} m**")
-    except ValueError as e:
-        c2.warning(f"No reliable operating point: {e}")
-    fig.update_layout(xaxis_title="Q (L/min)", yaxis_title="head H (m)", yaxis_range=[0, 4.5], showlegend=True)
-    c1.plotly_chart(fig, width="stretch")
-
-    st.markdown("#### P-101 · cavitation check (NPSH)")
-    Ts = np.arange(85.0, 99.6, 0.5)
-    na = [ph.npsh_available(x + C2K, ph.operating_point(x + C2K)) for x in Ts]
-    nr = [ph.npsh_required(ph.operating_point(x + C2K)) for x in Ts]
-    fig = go.Figure()
-    fig.add_scatter(x=Ts, y=na, name="NPSH available", line=dict(color=COLORS["water"]))
-    fig.add_scatter(x=Ts, y=nr, name="NPSH required", line=dict(color=COLORS["alarm"], dash="dash"))
-    fig.add_vline(x=T_water, line=dict(color=COLORS["grey"], dash="dot"))
-    fig.update_layout(xaxis_title="kettle temperature T_w (°C)", yaxis_title="NPSH (m)", showlegend=True)
-    st.plotly_chart(fig, width="stretch")
-    st.caption("As water nears 100 °C its vapour pressure approaches atmospheric pressure, so the suction margin "
-               "collapses. Where the curves cross, the pump would cavitate. The pump curve and NPSH-required curve are for a hypothetical small pump.")
-
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("#### A-101 · stirring")
-        st.markdown(f"Impeller Reynolds number Re = ρND²/μ = **{stir['Re']:.3g}** ({stir['regime']})  \n"
-                    f"Power number Np = **{stir['Np']:.2f}**, stirring power P = Np ρ N³ D⁵ = **{1000 * stir['P']:.2f} mW**")
-        if stir["regime"] != "turbulent":
-            st.warning("Not fully turbulent: the 'well-mixed' assumption in the extraction model is weaker here.")
-    with c2:
-        st.markdown("#### F-101 · plunge filtration")
+        st.markdown("#### F-101 · plunge filtration (Darcy's law)")
         st.markdown(f"Sauter diameter with fines d₃₂ = **{1e6 * plg['d32']:.0f} µm**, permeability k = **{plg['k']:.2e} m²**  \n"
                     f"Pressure drop: cake **{plg['dP_cake']:.0f} Pa** + mesh **{plg['dP_mesh']:.0f} Pa**, force **{plg['force']:.1f} N**")
+        g = np.linspace(300, 1200, 60)
+        fig = go.Figure(go.Scatter(x=g, y=[ph.plunge(x * 1e-6, T_brew_end, m_coffee=m_coffee / 1000, plunge_time=plunge_s,
+                                                      fines_fraction=fines)["force"] for x in g],
+                                   name="plunge force", line=dict(color=COLORS["coffee"])))
+        fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
+        fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="plunge force (N)", showlegend=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption("Kozeny–Carman is known to over-predict coffee-bed permeability (Corrochano et al. 2015), "
-                   "and the mesh resistance and cake porosity are assumed. Calibrate by plunging a real press on a kitchen scale.")
-
-    c1, c2 = st.columns(2)
-    with c1:
+                   "and the mesh resistance and cake porosity are assumed values.")
+    with c2:
         st.markdown("#### T-101 · fines settling (Stokes' law)")
+        st.markdown(f"30 µm fines: v_t = **{1000 * settle['v']:.2f} mm/s**, Re_p = **{settle['Re_p']:.3f}**, "
+                    f"settle 8 cm in **{settle['t_settle']:.0f} s**")
         d_f = np.linspace(10e-6, 300e-6, 100)
         res = [ph.settling(x, T_brew_end) for x in d_f]
         fig = go.Figure()
@@ -220,14 +164,6 @@ if view == "Fluid units":
         fig.update_layout(xaxis_title="particle diameter (µm)", yaxis_title="time to settle 8 cm (s)", yaxis_type="log",
                           yaxis_range=[np.log10(0.5), np.log10(3e4)], showlegend=True)
         st.plotly_chart(fig, width="stretch")
-    with c2:
-        st.markdown("#### D-101 · carafe draining (Torricelli)")
-        sp = np.linspace(4e-3, 20e-3, 60)
-        fig = go.Figure(go.Scatter(x=sp * 1000, y=[ph.drain_time(h_carafe, d_spout=x) for x in sp], name="drain time",
-                                   line=dict(color=COLORS["coffee"])))
-        fig.update_layout(xaxis_title="spout diameter (mm)", yaxis_title="drain time (s)", showlegend=True)
-        st.plotly_chart(fig, width="stretch")
-        st.caption(f"Liquid height in the carafe h₀ = {100 * h_carafe:.1f} cm, discharge coefficient C_d = 0.6 (assumed).")
 
 # ---- Lab notebook
 if view == "Lab notebook":
@@ -358,15 +294,7 @@ if view == "Engineering notes":
 | EY | extraction yield: dissolved mass / dry coffee mass | – (shown in %) |
 | τ_s, τ_d | surface dissolution and diffusion time scales | s |
 | F, S, m_l | solubles on grain surfaces, inside grains, dissolved in liquid | kg |
-| Q, V | volumetric flow rate, mean velocity | m³/s, m/s |
-| H, h_f, h_m | head: system, friction loss, fitting loss | m |
-| Re, f | Reynolds number, Darcy friction factor | – |
-| ΣK | sum of fitting loss coefficients | – |
-| NPSH | net positive suction head | m |
-| N, D | stirrer speed, impeller diameter | 1/s, m |
-| Np, P | power number, stirring power | –, W |
 | k | permeability of the grounds cake | m² |
-| C_d | discharge coefficient | – |
 
 #### Sources
 - Moroney et al. (2016), *Coffee extraction kinetics in a well mixed system*, J. Math. Industry 7: extraction time scales, extractable fraction, solubility, cell size.
@@ -375,9 +303,8 @@ if view == "Engineering notes":
 - Water properties: CoolProp (IAPWS-95 formulation).
 
 #### What is assumed (not measured)
-The pump and NPSH-required curves describe a hypothetical small pump. The press heat-loss conductance UA = 1 W/K,
-grounds specific heat 1700 J/(kg K), mesh resistance, cake porosity, fines fraction, TDS meter noise and
-carafe discharge coefficient are assumed values, marked in the code. Real-brew validation would replace them with measurements.
+The press heat-loss conductance UA = 1 W/K, grounds specific heat 1700 J/(kg K), mesh resistance, cake porosity,
+fines fraction and TDS meter noise are assumed values, marked in the code. Real-brew validation would replace them with measurements.
 
 The full derivations, with every step, are in `docs/derivations.html`.
 """)

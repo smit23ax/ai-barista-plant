@@ -11,8 +11,7 @@ in 250 g water) and are checked against plant/physics.py in tests/test_standards
 """
 
 # One convention for the whole project, from alex's pipe-flow notes (version A):
-SIGN_FLOW = ("Forward (the flow direction) is positive. Shear stress tau is a signed number and "
-             "tau = mu dv/dr, so it comes out negative when velocity falls toward the wall.")
+SIGN_FLOW = "Forward (the flow direction) is positive. Pressure drop is counted positive in the flow direction."
 SIGN_DOWN = "Downward is positive. Every force is a signed number in that direction."
 SIGN_IN = "Mass or heat into the system is positive and out of it is negative, so a loss term carries a minus sign."
 
@@ -39,49 +38,6 @@ SYMBOLS = {
     r"N_{DOF}": ("number of degrees of freedom", "1"),
     r"N_{var}": ("number of variables", "1"),
     r"N_{eq}": ("number of independent equations", "1"),
-    # ---- P-101: pipe flow ----
-    r"r": ("radial distance from the pipe centre line", "m"),
-    r"R": ("pipe inner radius", "m"),
-    r"D": ("pipe inner diameter", "m"),
-    r"L": ("pipe length", "m"),
-    r"P_1": ("pressure at the pipe inlet (point 1)", "Pa"),
-    r"P_2": ("pressure at the pipe outlet (point 2)", "Pa"),
-    r"\Delta P": ("pressure drop across a pipe, bed or mesh", "Pa"),
-    r"\tau": ("shear stress, signed (tau = mu dv/dr)", "Pa"),
-    r"v": ("local axial velocity of the fluid at radius r", "m/s"),
-    r"V": ("mean (average) velocity in the pipe, Q / area", "m/s"),
-    r"V_1": ("mean velocity at point 1", "m/s"),
-    r"V_2": ("mean velocity at point 2", "m/s"),
-    r"Q": ("volumetric flow rate", "m^3/s"),
-    r"Q_{max}": ("pump flow at zero head (pump-curve constant)", "m^3/s"),
-    r"\mathrm{Re}": ("pipe Reynolds number, inertia / viscous forces", "1"),
-    r"f": ("Darcy friction factor", "1"),
-    r"e": ("pipe wall roughness height", "m"),
-    r"h_f": ("head lost to wall friction", "m"),
-    r"h_m": ("head lost in fittings (minor losses)", "m"),
-    r"K_T": ("sum of fitting loss coefficients", "1"),
-    r"z_1": ("elevation of point 1", "m"),
-    r"z_2": ("elevation of point 2", "m"),
-    r"H_p": ("head added by the pump", "m"),
-    r"H_s": ("system head: head the line needs at flow Q", "m"),
-    r"H_0": ("pump shut-off head (head at zero flow)", "m"),
-    # ---- NPSH ----
-    r"P_{atm}": ("atmospheric pressure on the kettle surface, 101325", "Pa"),
-    r"P_v": ("vapour pressure of water at temperature T", "Pa"),
-    r"P_s": ("absolute pressure at the pump inlet", "Pa"),
-    r"V_s": ("mean velocity in the suction line", "m/s"),
-    r"z_s": ("height of the kettle liquid level above the pump inlet", "m"),
-    r"h_{L,s}": ("head lost in the suction line (friction plus fittings)", "m"),
-    r"\mathrm{NPSH}_a": ("net positive suction head available", "m"),
-    r"\mathrm{NPSH}_r": ("net positive suction head required by the pump", "m"),
-    r"a_r": ("constant of the NPSH-required curve", "m"),
-    r"b_r": ("coefficient of the NPSH-required curve", "s^2/m^5"),
-    # ---- A-101: stirring ----
-    r"N": ("stirrer rotational speed", "1/s"),
-    r"D_i": ("impeller diameter", "m"),
-    r"\mathrm{Re}_i": ("impeller Reynolds number", "1"),
-    r"N_P": ("power number (dimensionless stirring power)", "1"),
-    r"\dot{W}": ("stirring power delivered to the liquid", "W"),
     # ---- R-101: extraction ----
     r"F": ("undissolved solubles on the broken-cell surfaces of the grains (fast pool)", "kg"),
     r"S": ("solubles still inside the grains (slow pool)", "kg"),
@@ -112,6 +68,7 @@ SYMBOLS = {
     r"UA": ("overall heat-loss conductance of the press to the room", "W/K"),
     r"\tau_{th}": ("thermal time constant C / UA", "s"),
     # ---- F-101: plunge filtration ----
+    r"\Delta P": ("pressure drop across the grounds cake and mesh", "Pa"),
     r"u": ("superficial velocity: liquid flow rate / full press area", "m/s"),
     r"u_i": ("interstitial velocity: actual speed of liquid in the pores", "m/s"),
     r"k": ("permeability of the grounds cake", "m^2"),
@@ -130,7 +87,6 @@ SYMBOLS = {
     r"F_p": ("force needed on the plunger", "N"),
     r"t_p": ("plunge time", "s"),
     r"V_l": ("volume of liquid pushed through the cake", "m^3"),
-    r"\rho_{bulk}": ("bulk density of the grounds cake", "kg/m^3"),
     # ---- T-101: Stokes settling ----
     r"v_t": ("terminal settling velocity of a particle", "m/s"),
     r"u_p": ("particle velocity at any instant", "m/s"),
@@ -146,14 +102,6 @@ SYMBOLS = {
     r"\mathrm{Re}_p": ("particle Reynolds number, inertia over viscous forces", "1"),
     r"t_{set}": ("time for a fine to settle through the cup", "s"),
     r"h_c": ("depth of liquid in the cup", "m"),
-    # ---- D-101: Torricelli ----
-    r"h": ("liquid height in the carafe above the spout", "m"),
-    r"h_0": ("starting liquid height in the carafe", "m"),
-    r"A_t": ("cross-section area of the carafe", "m^2"),
-    r"a_o": ("area of the spout opening", "m^2"),
-    r"C_d": ("discharge coefficient of the spout, about 0.6", "1"),
-    r"v_j": ("speed of the jet leaving the spout", "m/s"),
-    r"t_d": ("time to drain the carafe", "s"),
     # ---- AI operator ----
     r"\mathbf{x}": ("recipe vector: grind, temperature, steep time, ratio (scaled to 0-1)", "1"),
     r"\mathbf{x}'": ("a second recipe vector", "1"),
@@ -163,7 +111,6 @@ SYMBOLS = {
     r"y": ("a measured outcome (TDS or EY)", "1"),
     r"\hat{y}": ("Gaussian-process prediction (mean) of the outcome", "1"),
     r"\hat{\sigma}": ("Gaussian-process standard deviation (how unsure it is)", "1"),
-    r"\sigma_n": ("measurement-noise standard deviation", "1"),
     r"\sigma_f": ("signal standard deviation (how much outcomes vary)", "1"),
     r"\kappa": ("kernel: similarity between two recipes", "1"),
     r"\ell_j": ("length scale of setpoint j (how far before recipes stop being similar)", "1"),
@@ -191,11 +138,10 @@ OVERVIEW = {
     },
     "steps": [
         {"title": "The plant in one line",
-         "write": r"\text{kettle} \rightarrow \text{pump} \rightarrow \text{press} \rightarrow \text{filter} "
-                  r"\rightarrow \text{carafe} \rightarrow \text{cup}",
-         "say": "Hot water leaves the kettle, a pump moves it through a pipe into the press, the grounds steep, "
-                "the plunger filters them out, and the coffee drains to a carafe and a cup. Each box is one unit "
-                "with one main equation from our courses."},
+         "write": r"\text{kettle} \rightarrow \text{press} \rightarrow \text{filter} \rightarrow \text{cup}",
+         "say": "Hot water from the kettle goes into the press, the grounds steep, the plunger filters "
+                "them out, and fine particles settle in the cup. Each step is one unit with one main "
+                "equation from our courses: a material balance, an energy balance, Darcy's law and Stokes' law."},
         {"title": "Strength (what a TDS meter reads)",
          "write": r"\mathrm{TDS} = \frac{m_l}{m_{bev}}",
          "say": "TDS is total dissolved solids: the mass of coffee dissolved, m_l, over the mass of the drink, "
@@ -236,197 +182,6 @@ OVERVIEW = {
 }
 
 # =====================================================================================================
-PIPE = {
-    "title": "P-101 pump and line: pipe flow, friction factor and operating point",
-    "tag": "P-101",
-    "sign": SIGN_FLOW,
-    "dof": {
-        "unknowns": ["flow rate Q", "pump head H_p", "Reynolds number Re", "friction factor f",
-                     "friction loss h_f", "fitting loss h_m"],
-        "equations": ["pump curve", "mechanical energy balance (system curve)", "definition of Re",
-                      "Colebrook (or 64/Re)", "Darcy-Weisbach", "minor-loss equation"],
-        "specified": ["D, L, roughness e, K_T, elevation gain z_2 − z_1, temperature (gives rho and mu), "
-                      "pump constants H_0 and Q_max"],
-        "result": "6 unknowns − 6 equations = 0: the pump and pipe together fix the flow. "
-                  "That's the operating point.",
-    },
-    "steps": [
-        {"title": "Laminar check first: force balance on a fluid cylinder",
-         "write": r"\pi r^2 (P_1 - P_2) + \tau\,(2 \pi r L) = 0",
-         "say": "Take a cylinder of fluid of radius r and length L, centred in the pipe. Forward is positive. "
-                "The pressure at the inlet pushes forward on the end area pi r squared, the outlet pushes back, "
-                "and the wall-side shear stress tau acts on the side area 2 pi r L. It isn't accelerating "
-                "(steady, fully developed), so the forces sum to zero. Tau is signed, so it is added."},
-        {"title": "Shear stress profile",
-         "write": r"\tau = -\frac{(P_1 - P_2)\, r}{2 L}",
-         "say": "Solve for tau. It's zero at the centre line and grows linearly to the wall. It's negative "
-                "because the slower fluid outside drags backward on the cylinder."},
-        {"title": "Newton's law of viscosity",
-         "write": r"\tau = \mu \frac{\mathrm{d}v}{\mathrm{d}r}",
-         "say": "Viscosity mu links shear stress to the velocity gradient dv/dr. In a pipe v falls toward the "
-                "wall, so dv/dr is negative, which matches the negative tau."},
-        {"title": "Integrate with no slip at the wall",
-         "write": r"v = \frac{(P_1 - P_2)}{4 \mu L}\,(R^2 - r^2)",
-         "say": "Set the two expressions equal, separate, and integrate from the wall, where v = 0 (no slip), "
-                "to radius r. The result is a parabola, fastest at the centre."},
-        {"title": "Flow rate and mean velocity (Hagen-Poiseuille)",
-         "write": r"Q = \frac{\pi (P_1 - P_2) D^4}{128 \mu L}, \quad V = \frac{Q}{\pi D^2/4}",
-         "say": "Integrate v times the ring area 2 pi r dr from 0 to R. With R to the fourth equal to D to the "
-                "fourth over 16, you get Q. The mean velocity V is Q over the pipe area."},
-        {"title": "Laminar friction factor",
-         "write": r"f = \frac{64}{\mathrm{Re}}, \quad \mathrm{Re} = \frac{\rho V D}{\mu}",
-         "say": "Rewrite Hagen-Poiseuille in Darcy-Weisbach form. The friction factor in laminar flow is "
-                "exactly 64 over Re. Re is the Reynolds number, inertia over viscous forces."},
-        {"title": "Our pipe is turbulent: Colebrook",
-         "write": r"\frac{1}{\sqrt{f}} = -2 \log_{10}\!\left( \frac{e/D}{3.7} + \frac{2.51}{\mathrm{Re}\sqrt{f}} \right)",
-         "say": "At the operating point Re is about 64,000, well above 4000, so the flow is turbulent and 64 "
-                "over Re no longer applies. Colebrook links f to Re and the relative roughness e over D. f "
-                "appears on both sides, so the code solves it with a root finder. Between Re 2300 and 4000 "
-                "the code refuses to answer, because no correlation is reliable there."},
-        {"title": "Mechanical energy balance from point 1 to point 2",
-         "write": r"\frac{P_1}{\rho g} + \frac{V_1^2}{2 g} + z_1 + H_p = \frac{P_2}{\rho g} + \frac{V_2^2}{2 g} + z_2 + h_f + h_m",
-         "say": "The engineering Bernoulli equation in heads. Pressure head, velocity head and elevation at "
-                "point 1, plus what the pump adds, equal the same at point 2 plus the friction and fitting "
-                "losses. Every term is energy per unit weight, in metres."},
-        {"title": "Friction and fitting losses",
-         "write": r"h_f = f \frac{L}{D} \frac{V^2}{2 g}, \quad h_m = K_T \frac{V^2}{2 g}",
-         "say": "Darcy-Weisbach gives the wall friction loss. Each fitting (bends, valve, entrance, exit) adds "
-                "K times the velocity head, summed into K_T."},
-        {"title": "System curve",
-         "write": r"H_s = (z_2 - z_1) + \left( f \frac{L}{D} + K_T \right) \frac{V^2}{2 g}",
-         "say": "Both ends are open to the atmosphere, so P_1 = P_2. The kettle surface barely moves and the exit "
-                "kinetic energy is counted in K_T. So the line needs the lift z_2 − z_1 plus losses that grow "
-                "about as Q squared."},
-        {"title": "Pump curve and operating point",
-         "write": r"H_p = H_0 \left( 1 - \frac{Q^2}{Q_{max}^2} \right) = H_s",
-         "say": "The pump gives less head at higher flow. The plant runs where the pump curve meets the "
-                "system curve. A root finder gives Q of about 7.6 litres per minute, a mean velocity of 2.5 "
-                "metres per second and a head of 2.4 metres."},
-    ],
-    "checks": [
-        "At the wall (r = R) the laminar velocity is 0: no slip. At the centre line it's maximum and tau = 0.",
-        "Doubling D in laminar flow multiplies Q by 16 at the same pressure drop (D to the fourth).",
-        "Closing a valve raises K_T, so the system curve gets steeper and the operating flow falls.",
-        "Hotter water has lower mu, so Re rises and f falls a little.",
-        "Units: f, Re and K_T are dimensionless. Every head is in metres.",
-    ],
-    "questions": [
-        ("Why is f = 64/Re only for laminar flow?",
-         "It comes from the exact parabolic profile, which only exists when viscous forces dominate (Re < 2300)."),
-        ("Why does Colebrook need a root finder?",
-         "f appears on both sides, inside a log and a square root, so it can't be solved for f by algebra."),
-        ("What does the mechanical energy balance leave out?",
-         "Heat transfer and internal energy. Friction turns mechanical energy into heat, and we book that as head loss."),
-        ("Why is tau negative in your force balance?",
-         "In my convention tau = mu dv/dr, and v falls toward the wall, so the gradient is negative."),
-        ("Why is there a pump in a coffee plant?",
-         "It's a hypothetical transfer pump, part of the plant dress-up, so the project covers pipe flow and NPSH. "
-         "The app labels it as hypothetical."),
-    ],
-}
-
-# =====================================================================================================
-NPSH = {
-    "title": "P-101 suction side: NPSH and cavitation",
-    "tag": "P-101",
-    "sign": SIGN_FLOW,
-    "dof": {
-        "unknowns": ["inlet pressure P_s", "NPSH available"],
-        "equations": ["mechanical energy balance from kettle surface to pump inlet", "definition of NPSH_a"],
-        "specified": ["P_atm, temperature (gives P_v and rho), z_s, suction losses at the operating flow Q"],
-        "result": "2 unknowns − 2 equations = 0. Then compare NPSH_a with the pump's NPSH_r: a check, not an unknown.",
-    },
-    "steps": [
-        {"title": "Energy balance from the kettle surface to the pump inlet",
-         "write": r"\frac{P_{atm}}{\rho g} + z_s = \frac{P_s}{\rho g} + \frac{V_s^2}{2 g} + h_{L,s}",
-         "say": "Start at the kettle surface, open to the atmosphere and at height z_s above the pump. End at "
-                "the pump inlet with pressure P_s and velocity V_s. The suction line loses h_L,s on the way. "
-                "No pump work yet, because the pump is downstream."},
-        {"title": "Definition of NPSH available",
-         "write": r"\mathrm{NPSH}_a = \frac{P_s}{\rho g} + \frac{V_s^2}{2 g} - \frac{P_v}{\rho g}",
-         "say": "Net positive suction head is how far the total inlet head sits above the vapour pressure "
-                "head. If the liquid pressure drops to P_v, it boils inside the pump. That's cavitation."},
-        {"title": "Combine the two",
-         "write": r"\mathrm{NPSH}_a = \frac{P_{atm} - P_v}{\rho g} + z_s - h_{L,s}",
-         "say": "Substitute the energy balance. Atmospheric pressure helps, the vapour pressure of hot water "
-                "hurts, a liquid level above the pump helps, and suction losses hurt."},
-        {"title": "What the pump needs",
-         "write": r"\mathrm{NPSH}_r = a_r + b_r Q^2",
-         "say": "The pump maker measures NPSH required, which rises with flow. Mine is a hypothetical curve."},
-        {"title": "Cavitation criterion",
-         "write": r"\mathrm{NPSH}_a > \mathrm{NPSH}_r",
-         "say": "At 93 °C, NPSH available is about 2.2 metres against 0.8 required, so it's safe. At 99 °C the "
-                "vapour pressure is almost atmospheric, NPSH available collapses to about 0.16 metres, and "
-                "the app raises the cavitation alarm."},
-    ],
-    "checks": [
-        "At 100 °C, P_v = P_atm, so the first term is zero: only the liquid level can keep the pump running.",
-        "Raising the kettle above the pump (bigger z_s) adds margin one metre for one metre.",
-        "Cold water has P_v of about 2 kPa, so NPSH available is about 10 metres: cold water almost never cavitates.",
-    ],
-    "questions": [
-        ("Why is NPSH a problem for hot liquids?",
-         "Vapour pressure rises steeply with temperature, so hot liquids boil at a lower pressure drop."),
-        ("How do real plants fix it?",
-         "Put the pump below the tank, use a short, wide suction pipe, or cool the liquid before the pump."),
-        ("What happens physically during cavitation?",
-         "Vapour bubbles form in the low-pressure eye of the impeller and collapse violently further on, "
-         "causing noise, lost head and erosion."),
-    ],
-}
-
-# =====================================================================================================
-STIR = {
-    "title": "A-101 stirrer: impeller Reynolds number and power",
-    "tag": "R-101",
-    "sign": SIGN_IN,
-    "dof": {
-        "unknowns": ["impeller Reynolds number Re_i", "power number N_P", "power W"],
-        "equations": ["definition of Re_i", "power curve N_P(Re_i)", "definition of N_P"],
-        "specified": ["speed N, impeller diameter D_i, temperature (gives rho and mu)"],
-        "result": "3 unknowns − 3 equations = 0.",
-    },
-    "steps": [
-        {"title": "Which variables set the power? (Buckingham Pi)",
-         "write": r"\dot{W} = \text{fn}(N,\; D_i,\; \rho,\; \mu)",
-         "say": "Stirring power depends on speed, impeller size, and the liquid's density and viscosity: 5 "
-                "variables in 3 base units (kilogram, metre, second). So Buckingham Pi gives 5 − 3 = 2 "
-                "dimensionless groups."},
-        {"title": "Group 1: impeller Reynolds number",
-         "write": r"\mathrm{Re}_i = \frac{\rho N D_i^2}{\mu}",
-         "say": "The tip speed scales as N times D_i, and the length is D_i. So this is inertia over viscous "
-                "forces for a stirred tank."},
-        {"title": "Group 2: power number",
-         "write": r"N_P = \frac{\dot{W}}{\rho N^3 D_i^5}",
-         "say": "Power made dimensionless. Think of it as a drag coefficient for the impeller."},
-        {"title": "The power curve",
-         "write": r"N_P = \max\!\left( \frac{70}{\mathrm{Re}_i},\; 5 \right)",
-         "say": "For a flat-blade turbine, N_P is about 70 over Re_i in laminar flow, where power goes as "
-                "viscosity, and flat at about 5 in turbulent flow. I use the two limits, and the app labels "
-                "the transition region as rough."},
-        {"title": "Why it matters for the extraction model",
-         "write": r"\mathrm{Re}_i \approx 1.1 \times 10^{4} > 10^{4}",
-         "say": "At 180 rpm Re_i is about 11,000, so the tank is turbulent, which supports the well-mixed "
-                "assumption in the extraction balance. Below that, the app warns that the model's mixing "
-                "assumption is weak."},
-    ],
-    "checks": [
-        "Turbulent: power goes as N cubed. Doubling the speed takes 8 times the power.",
-        "Laminar: N_P Re_i = 70, so power is proportional to mu N^2 D_i^3, independent of density.",
-        "Power is tiny (about 0.01 W), so stirring heat is negligible in the energy balance.",
-    ],
-    "questions": [
-        ("Why D_i squared in Re_i?",
-         "The velocity scale is N D_i (tip speed) and the length scale is D_i, so their product gives N D_i squared."),
-        ("Why 5 groups minus 3 units?",
-         "Buckingham Pi: the number of dimensionless groups is the number of variables minus the number of base dimensions."),
-        ("Does stirring change extraction in your model?",
-         "Only through the well-mixed assumption. The app checks Re_i, but I don't model a mass-transfer boost "
-         "from stirring. That's a stated limitation."),
-    ],
-}
-
-# =====================================================================================================
 EXTRACTION = {
     "title": "R-101 extraction: three-pool material balance",
     "tag": "R-101",
@@ -453,7 +208,7 @@ EXTRACTION = {
         {"title": "Surface pool: dissolution",
          "write": r"\frac{\mathrm{d}F}{\mathrm{d}t} = -\frac{F}{\tau_s}\left( 1 - \frac{c}{c_{sat}} \right)",
          "say": "Accumulation equals minus what dissolves. First order in F with time scale tau_s, and it slows "
-                "as the liquid approaches saturation c_sat. With c at about 13 kilograms per cubic metre "
+                "as the liquid approaches saturation c_sat. With c at about 11 kilograms per cubic metre "
                 "against 212, that factor stays near 1."},
         {"title": "In-grain pool: diffusion out",
          "write": r"\frac{\mathrm{d}S}{\mathrm{d}t} = -\frac{V_k}{\tau_d}\,(c_k - c)",
@@ -504,7 +259,8 @@ EXTRACTION = {
         ("Where do your constants come from?",
          "Moroney et al. 2016 (time scales, x_E, c_sat, cell size) and Corrochano et al. 2015 (densities, porosity)."),
         ("What does 'well mixed' assume and is it valid?",
-         "One concentration throughout the liquid. The stirrer Reynolds number of about 11,000 supports it."),
+         "One concentration throughout the liquid. It's reasonable after a stir, and it's the standard "
+         "assumption in Moroney's model. A real press has some gradients, which is a stated limitation."),
     ],
 }
 
@@ -525,8 +281,12 @@ COOLING = {
          "say": "Right after pouring, in the first seconds, heat loss to the room is negligible, so mixing is "
                 "adiabatic. The hot water cools to T_0, while the room-temperature grounds and the press "
                 "vessel warm up to T_0."},
+        {"title": "Total heat capacity",
+         "write": r"C = m_w c_{p,w} + m_c c_{p,c} + m_v c_{p,v}",
+         "say": "Add up mass times specific heat for everything that changes temperature together: water, "
+                "grounds and glass. C is about 1370 joules per kelvin, and the glass is a fifth of it."},
         {"title": "Solve for the starting temperature",
-         "write": r"T_0 = \frac{m_w c_{p,w} T_w + m_c c_{p,c} T_\infty + m_v c_{p,v} T_v}{C}, \quad C = m_w c_{p,w} + m_c c_{p,c} + m_v c_{p,v}",
+         "write": r"T_0 = \frac{m_w c_{p,w} T_w + m_c c_{p,c} T_\infty + m_v c_{p,v} T_v}{C}",
          "say": "A heat-capacity-weighted average temperature. With a cold 350 gram glass press, 93 °C water "
                 "starts the brew at only 76.5 °C. Preheating the press (T_v = T_w) removes most of that drop."},
         {"title": "Transient energy balance on the press",
@@ -683,18 +443,18 @@ STOKES = {
          "write": r"\rho_p = \rho_s (1 - \varepsilon_p) + \rho\, \varepsilon_p",
          "say": "A coffee fine is porous and its pores fill with water. Its density is the solid's "
                 "density, rho_s = 1337 kilograms per cubic metre, times the solid fraction, plus water's "
-                "density times the pore fraction epsilon_p = 0.53. That gives about 1144 kilograms per "
+                "density times the pore fraction epsilon_p = 0.53. That gives about 1145 kilograms per "
                 "cubic metre, only a bit heavier than the brew, which is why fines settle slowly."},
         {"title": "Check the assumption: particle Reynolds number",
          "write": r"\mathrm{Re}_p = \frac{\rho v_t d_p}{\mu} < 0.1",
          "say": "Stokes drag assumes creeping flow, where viscous forces dominate inertia. The particle "
-                "Reynolds number compares the two. For a 30 micrometre fine it's about 0.02, below 0.1, "
+                "Reynolds number compares the two. For a 30 micrometre fine at the end of the brew it's about 0.014, below 0.1, "
                 "so Stokes' law holds. The app flags any case above 0.1."},
         {"title": "Settling time through the cup",
          "write": r"t_{set} = \frac{h_c}{v_t}",
          "say": "The time to fall the depth h_c of the cup at constant speed. For 30 micrometre fines in "
-                "8 centimetres of coffee at about 77 °C, v_t is about 0.23 millimetres per second, so "
-                "settling takes about 6 minutes. That's why the last sip of French press coffee is gritty."},
+                "8 centimetres of coffee at the end of the brew (about 68 °C), v_t is about 0.2 millimetres "
+                "per second, so settling takes about 7 minutes. That's why the last sip of French press coffee is gritty."},
     ],
     "checks": [
         "If rho_p = rho, v_t = 0: a particle with the liquid's density is neutrally buoyant and doesn't sink.",
@@ -719,52 +479,6 @@ STOKES = {
         ("Does the cup wall or other particles matter?",
          "I assumed one sphere far from walls and other particles. Fines are dilute and much smaller "
          "than the cup, so the effect is small. It's a stated assumption."),
-    ],
-}
-
-# =====================================================================================================
-DRAIN = {
-    "title": "D-101 carafe: Torricelli draining",
-    "tag": "D-101",
-    "sign": SIGN_IN,
-    "dof": {
-        "unknowns": ["liquid height h(t)", "jet speed v_j", "drain time t_d"],
-        "equations": ["unsteady mass balance on the carafe", "Bernoulli from surface to jet", "h(t_d) = 0"],
-        "specified": ["starting height h_0, carafe area A_t, spout area a_o, discharge coefficient C_d"],
-        "result": "3 unknowns − 3 equations = 0.",
-    },
-    "steps": [
-        {"title": "Mass balance on the carafe (constant density)",
-         "write": r"A_t \frac{\mathrm{d}h}{\mathrm{d}t} = -C_d\, a_o\, v_j",
-         "say": "Accumulation equals minus what leaves. The volume in the carafe is A_t times h, and the "
-                "outflow is the jet area times jet speed. C_d corrects for the jet contracting after the "
-                "sharp edge (vena contracta)."},
-        {"title": "Jet speed from Bernoulli",
-         "write": r"v_j = \sqrt{2 g h}",
-         "say": "From the free surface to the jet: both at atmospheric pressure, and the surface moves slowly, "
-                "so all the elevation head becomes velocity head. That's Torricelli's law, the free-fall speed "
-                "from height h. It's quasi-steady, because the level falls slowly."},
-        {"title": "Separate variables",
-         "write": r"\frac{\mathrm{d}h}{\sqrt{h}} = -\frac{C_d\, a_o \sqrt{2 g}}{A_t}\, \mathrm{d}t",
-         "say": "Put all the h terms on one side and the t terms on the other."},
-        {"title": "Integrate from h_0 to empty",
-         "write": r"t_d = \frac{A_t}{C_d\, a_o} \sqrt{\frac{2 h_0}{g}}",
-         "say": "Integrating 1 over root h gives 2 root h. From full to empty, the drain time is the area "
-                "ratio times the free-fall time from h_0. For the standard batch it's about 8 seconds."},
-    ],
-    "checks": [
-        "Doubling the spout diameter makes a_o 4 times bigger, so the carafe drains 4 times faster.",
-        "Four times the starting height only doubles the drain time (square root of h_0).",
-        "The flow slows down as the carafe empties, because v_j shrinks with root h.",
-    ],
-    "questions": [
-        ("Why the discharge coefficient?",
-         "The jet narrows just past a sharp-edged hole, and there is a small friction loss. C_d of about 0.6 "
-         "covers both."),
-        ("Why is the drain time proportional to root h_0 and not h_0?",
-         "The outflow is fastest when the carafe is full, so a taller start doesn't add time proportionally."),
-        ("Is Bernoulli valid in an unsteady problem?",
-         "Quasi-steady: the surface moves at about A_t/a_o times slower than the jet, so the unsteady term is tiny."),
     ],
 }
 
@@ -801,7 +515,7 @@ AI = {
                 "sigma-hat. Near brewed recipes sigma-hat is small, and far away it's large. scikit-learn "
                 "does the matrix algebra."},
         {"title": "Probability of landing in the box",
-         "write": r"P_{in} = \left[ \Phi\!\left( \frac{y_{hi} - \hat{y}}{\hat{\sigma}} \right) - \Phi\!\left( \frac{y_{lo} - \hat{y}}{\hat{\sigma}} \right) \right]_{\mathrm{TDS}} \left[ \;\cdot\; \right]_{\mathrm{EY}}",
+         "write": r"P_{in} = \left[ \Phi\!\left( \frac{y_{hi} - \hat{y}}{\hat{\sigma}} \right) - \Phi\!\left( \frac{y_{lo} - \hat{y}}{\hat{\sigma}} \right) \right]_{\mathrm{TDS}} \times \left[ \text{same for EY} \right]",
          "say": "For each outcome, the chance that a normal variable with mean y-hat and spread sigma-hat lands "
                 "between the lower and upper target. Multiply the TDS and EY chances (treated as independent). "
                 "The AI brews the recipe with the highest P_in out of 3000 random candidates."},
@@ -828,13 +542,9 @@ AI = {
 
 UNITS = {
     "Plant overview & DOF": OVERVIEW,
-    "Pipe flow & pump (P-101)": PIPE,
-    "NPSH & cavitation (P-101)": NPSH,
-    "Stirrer (A-101)": STIR,
     "Extraction balance (R-101)": EXTRACTION,
     "Energy balance (R-101)": COOLING,
     "Plunge filtration (F-101)": FILTER,
     "Stokes settling (T-101)": STOKES,
-    "Carafe draining (D-101)": DRAIN,
     "AI operator": AI,
 }

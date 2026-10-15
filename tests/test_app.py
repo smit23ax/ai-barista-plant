@@ -21,13 +21,14 @@ def test_every_view_renders():
         assert not at.exception, view
 
 
-def test_cavitation_alarm_trips_near_boiling():
+def test_plug_alarm_trips_for_fine_grind_and_fast_plunge():
     at = AppTest.from_file("../app.py", default_timeout=120).run()
-    assert not any("CAVITATION" in e.value for e in at.error)          # 93 C default: pump is fine
-    temp = next(s for s in at.slider if s.label.startswith("Kettle temperature"))
-    temp.set_value(99.0)
+    assert not any("PLUGGED" in e.value for e in at.error)            # standard recipe plunges easily
+    next(s for s in at.slider if s.label.startswith("Grind size")).set_value(300)
+    next(s for s in at.slider if s.label.startswith("Plunge time")).set_value(3)
+    next(s for s in at.slider if s.label.startswith("Fines")).set_value(0.40)
     at.button[0].click().run()
-    assert any("CAVITATION" in e.value for e in at.error)              # 99 C: NPSH margin is gone
+    assert any("PLUGGED" in e.value for e in at.error)
 
 
 def test_presenter_clicks_through_every_step_and_grill_me():

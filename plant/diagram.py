@@ -32,17 +32,14 @@ def _label(x, y, name, sub):
 
 
 # Bounding boxes (x, y, width, height) used to highlight one unit in presenter mode.
-UNIT_BOXES = {"E-101": (60, 150, 160, 200), "P-101": (230, 380, 100, 110), "SR-101": (180, 45, 150, 90),
-              "R-101": (485, 45, 160, 390), "F-101": (690, 395, 80, 110), "D-101": (790, 195, 100, 175),
-              "T-101": (880, 380, 105, 135)}
+UNIT_BOXES = {"E-101": (60, 150, 160, 200), "SR-101": (180, 45, 150, 90),
+              "R-101": (485, 45, 160, 390), "F-101": (690, 395, 80, 110), "T-101": (880, 380, 105, 135)}
 
 
 def plant_svg(v, running=False, highlight=None):
     """v: dict of live values (already formatted strings) and alarm flags. Keys used:
-    T_kettle, Q_pump, H_pump, npsh, cav_alarm, grind, T_brew, TDS, EY, stir_Re, plunge_F, plug_alarm,
-    settle_t, drain_t, in_box. highlight: a unit tag from UNIT_BOXES to outline, or None."""
+    T_kettle, grind, T_brew, TDS, EY, plunge_F, plug_alarm, settle_t, in_box. highlight: a unit tag from UNIT_BOXES to outline, or None."""
     tds_color = VALUE if v.get("in_box") else WARN
-    pump_color = ALARM if v.get("cav_alarm") else GREY
     filt_color = ALARM if v.get("plug_alarm") else GREY
     s = [f'<svg viewBox="0 0 1040 540" xmlns="http://www.w3.org/2000/svg" role="img" '
          f'aria-label="Process flow diagram of the coffee plant" style="width:100%;height:auto;background:#0d1117;border-radius:8px">',
@@ -56,12 +53,10 @@ def plant_svg(v, running=False, highlight=None):
          f'{"● BATCH RUNNING" if running else "○ IDLE"}</text>']
 
     # Process lines
-    s.append(_pipe([(150, 330), (150, 420), (255, 420)], WATER, running))              # kettle -> pump
-    s.append(_pipe([(305, 420), (390, 420), (390, 150), (500, 150)], WATER, running))   # pump -> press top
+    s.append(_pipe([(150, 330), (150, 420), (390, 420), (390, 150), (500, 150)], WATER, running))  # kettle -> press
     s.append(_pipe([(310, 110), (470, 110), (470, 135), (520, 135)], COFFEE, running, 3))  # grinder -> press
     s.append(_pipe([(560, 420), (560, 470), (700, 470)], COFFEE, running))              # press -> filter
-    s.append(_pipe([(760, 470), (820, 470), (820, 330)], COFFEE, running))              # filter -> carafe
-    s.append(_pipe([(870, 360), (930, 360), (930, 420)], COFFEE, running))              # carafe -> cup
+    s.append(_pipe([(760, 470), (830, 470), (830, 360), (930, 360), (930, 420)], COFFEE, running))  # filter -> cup
     s.append(_pipe([(730, 500), (730, 520), (640, 520)], GREY, running, 3))             # spent grounds
 
     # E-101 kettle with heating coil
@@ -71,14 +66,6 @@ def plant_svg(v, running=False, highlight=None):
     s.append(_label(150, 172, "E-101", "KETTLE / HEATER"))
     s.append(_tag(70, 250, "TI-101", v["T_kettle"]))
 
-    # P-101 centrifugal pump
-    s.append(f'<circle cx="280" cy="420" r="26" fill="#161b22" stroke="{pump_color}" stroke-width="2.5"/>'
-             f'<path d="M268 405 L298 420 L268 435 Z" fill="none" stroke="{pump_color}" stroke-width="2"/>')
-    s.append(_label(280, 468, "P-101", "PUMP + LINE"))
-    s.append(_tag(250, 370, "FI-101", v["Q_pump"]))
-    s.append(_tag(120, 500, "PI-101", v["H_pump"]))
-    s.append(_tag(400, 500, "XI-101", v["npsh"], ALARM if v.get("cav_alarm") else VALUE))
-
     # SR-101 grinder (hopper + crushing rolls)
     s.append(f'<path d="M240 60 L320 60 L300 95 L260 95 Z" fill="#161b22" stroke="{GREY}" stroke-width="2"/>'
              f'<circle cx="270" cy="108" r="9" fill="none" stroke="{GREY}" stroke-width="2"/>'
@@ -86,19 +73,15 @@ def plant_svg(v, running=False, highlight=None):
     s.append(_label(195, 70, "SR-101", "GRINDER"))
     s.append(_tag(200, 120, "XI-102", v["grind"]))
 
-    # R-101 French press with agitator A-101 and plunger
+    # R-101 French press with plunger
     s.append(f'<rect x="500" y="130" width="120" height="290" rx="6" fill="#161b22" stroke="{GREY}" stroke-width="2"/>'
              f'<rect x="502" y="190" width="116" height="228" fill="{COFFEE}" opacity="0.30"/>'
              f'<line x1="560" y1="80" x2="560" y2="330" stroke="{GREY}" stroke-width="3"/>'
-             f'<line x1="530" y1="330" x2="590" y2="330" stroke="{GREY}" stroke-width="4"/>'
-             f'<path d="M545 330 l15 -10 l15 10" fill="none" stroke="{GREY}" stroke-width="2">'
-             + ('<animateTransform attributeName="transform" type="rotate" from="0 560 330" to="360 560 330" dur="1.2s" repeatCount="indefinite"/>' if running else "")
-             + '</path>')
-    s.append(_label(560, 62, "R-101 / A-101", "BATCH EXTRACTOR + STIRRER"))
+             f'<line x1="530" y1="330" x2="590" y2="330" stroke="{GREY}" stroke-width="4"/>')
+    s.append(_label(560, 62, "R-101", "BATCH EXTRACTOR (PRESS)"))
     s.append(_tag(655, 170, "TI-102", v["T_brew"]))
     s.append(_tag(655, 220, "AT-101", v["TDS"], tds_color))
     s.append(_tag(655, 270, "AT-102", v["EY"], tds_color))
-    s.append(_tag(655, 320, "XI-103", v["stir_Re"]))
 
     # F-101 plunger filter (filter symbol: box with diagonal mesh)
     s.append(f'<rect x="700" y="445" width="60" height="50" fill="#161b22" stroke="{filt_color}" stroke-width="2.5"/>'
@@ -107,11 +90,7 @@ def plant_svg(v, running=False, highlight=None):
     s.append(_tag(650, 380, "WI-101", v["plunge_F"], ALARM if v.get("plug_alarm") else VALUE))
     s.append(f'<text x="600" y="535" class="sub">spent grounds</text>')
 
-    # D-101 carafe and T-101 cup
-    s.append(f'<path d="M800 230 L880 230 L870 360 L810 360 Z" fill="#161b22" stroke="{GREY}" stroke-width="2"/>'
-             f'<path d="M806 290 L874 290 L870 358 L810 358 Z" fill="{COFFEE}" opacity="0.35"/>')
-    s.append(_label(840, 212, "D-101", "CARAFE"))
-    s.append(_tag(905, 300, "KI-101", v["drain_t"]))
+    # T-101 cup
     s.append(f'<path d="M905 420 L955 420 L950 480 L910 480 Z" fill="#161b22" stroke="{GREY}" stroke-width="2"/>'
              f'<path d="M955 435 q20 0 20 15 q0 15 -22 15" fill="none" stroke="{GREY}" stroke-width="2"/>')
     s.append(_label(930, 500, "T-101", "CUP"))

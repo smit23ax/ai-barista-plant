@@ -37,6 +37,13 @@ def test_symbol_audit_catches_a_broken_equation():
     assert undefined_symbols(r"v_t = \frac{\Delta x}{q}") == [r"\Delta", "x", "q"]
 
 
+def test_symbol_table_has_no_unused_entries():
+    tex = " ".join(t for _, t in all_equations())
+    unused = [k for k in steps.SYMBOLS
+              if not re.search(r"(?<![A-Za-z\\])" + re.escape(k) + r"(?![A-Za-z_'])", tex)]
+    assert unused == []
+
+
 def test_every_symbol_has_meaning_and_si_unit():
     ureg = pint.UnitRegistry()
     for sym, (meaning, unit) in steps.SYMBOLS.items():
@@ -103,3 +110,23 @@ def test_out_of_range_inputs_raise():
         physics.water(400.0)
     with pytest.raises(ValueError):
         physics.brew(50e-6, 366.15, 240)
+
+
+# ---------- numbers quoted in the Say lines match the model (standard recipe) ----------
+def test_quoted_numbers_match_the_model():
+    b = physics.brew(800e-6, 366.15, 240)
+    T_end = b["T"][-1]
+    assert round(b["T0"] - 273.15, 1) == 76.5
+    assert round(100 * b["TDS"], 2) == 1.10 and round(100 * b["EY"], 1) == 17.9
+    assert round(physics.fast_fraction(800e-6), 2) == 0.21
+    s = physics.settling(30e-6, T_end)
+    assert round(T_end - 273.15) == 68 and round(1000 * s["v"], 1) == 0.2
+    assert round(s["t_settle"] / 60) == 7 and round(s["Re_p"], 3) == 0.014 and round(s["rho_p"], -1) == 1150
+    assert round(physics.plunge(800e-6, T_end)["force"]) == 2
+    rho, _, cp = physics.water(366.15)
+    C = 0.25 * cp + 0.015 * physics.CP_COFFEE + 0.35 * 840
+    assert round(C, -1) == 1370 and round(C / 60) == 23
+    V_k = physics.EPS_PARTICLE * 0.015 / (physics.RHO_SOLID * (1 - physics.EPS_PARTICLE))
+    V_b = 0.25 / rho - V_k
+    assert round(100 * physics.X_EXTRACTABLE * V_b / (V_b + V_k), 1) == 28.5
+    assert round(b["m_l"][-1] / V_b) == 11

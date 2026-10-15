@@ -1,13 +1,10 @@
 """Physics core of the AI Barista Plant. Plain functions, SI units everywhere, no Streamlit calls.
 
 Unit operations
-  E-101  kettle (heater)                 energy balance
-  P-101  pump + transfer line            Darcy-Weisbach, Colebrook, minor losses, pump curve, NPSH
+  E-101  kettle (heater)                 hot water feed
   R-101  French press chamber            batch extraction (material balance) + cooling (energy balance)
-  A-101  stirrer in R-101                impeller Reynolds number and power
   F-101  plunger filter                  Darcy flow through grounds cake + mesh (Kozeny-Carman)
   T-101  cup                             Stokes settling of fines
-  D-101  carafe                          Torricelli draining
 
 Literature sources (see docs/derivations.html for the full list)
   [M16] Moroney et al., "Coffee extraction kinetics in a well mixed system", J. Math. Industry 7 (2016).
@@ -17,7 +14,6 @@ Literature sources (see docs/derivations.html for the full list)
 """
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.optimize import brentq
 import CoolProp.CoolProp as CP
 
 G = 9.81            # gravitational acceleration, m/s^2
@@ -49,65 +45,6 @@ def water(T):
     mu = CP.PropsSI("V", "T", T, "P", P_ATM, "Water")
     cp = CP.PropsSI("C", "T", T, "P", P_ATM, "Water")
     return rho, mu, cp
-
-
-def vapor_pressure(T):
-    """Saturation (vapor) pressure of water at temperature T (K), Pa."""
-    return CP.PropsSI("P", "T", T, "Q", 0, "Water")
-
-
-# =====================================================================================
-# P-101: pump and transfer line
-# =====================================================================================
-def colebrook(Re, rel_rough):
-    """Darcy friction factor f (-) for Reynolds number Re (-) and relative roughness eps/D (-).
-    Laminar (Re < 2300): f = 64/Re. Turbulent (Re > 4000): Colebrook equation solved with brentq.
-    Transitional flow is reported as an error instead of being silently interpolated."""
-    if Re < 2300:
-        return 64.0 / Re
-    if Re < 4000:
-        raise ValueError(f"Re = {Re:.0f} is in the transition region (2300-4000); no reliable friction factor.")
-    colebrook_residual = lambda f: 1 / np.sqrt(f) + 2 * np.log10(rel_rough / 3.7 + 2.51 / (Re * np.sqrt(f)))
-    return brentq(colebrook_residual, 1e-4, 1.0)
-
-
-def transfer_line(Q, T, D=0.008, L=1.5, rough=1.5e-6, K_total=2.6, dz=0.3):
-    """Head needed to move hot water from E-101 to R-101.
-    Q: volumetric flow rate (m^3/s), T: water temperature (K), D: pipe inner diameter (m), L: pipe length (m),
-    rough: wall roughness (m), K_total: sum of minor-loss coefficients (-), dz: elevation gain (m).
-    Returns dict with velocity V (m/s), Re (-), f (-), friction head h_f (m), minor head h_m (m), system head H (m)."""
-    rho, mu, _ = water(T)
-    V = Q / (np.pi * D**2 / 4)
-    Re = rho * V * D / mu
-    f = colebrook(Re, rough / D)
-    h_f = f * (L / D) * V**2 / (2 * G)
-    h_m = K_total * V**2 / (2 * G)
-    return {"V": V, "Re": Re, "f": f, "h_f": h_f, "h_m": h_m, "H": dz + h_f + h_m}
-
-
-def pump_head(Q, H0=4.0, Q_max=2.0e-4):
-    """Hypothetical small centrifugal pump curve: H = H0 (1 - (Q/Q_max)^2).
-    H0: shut-off head (m), Q_max: flow at zero head (m^3/s)."""
-    return H0 * (1 - (Q / Q_max) ** 2)
-
-
-def operating_point(T, **line):
-    """Flow Q (m^3/s) where the pump curve meets the system curve, found with brentq."""
-    return brentq(lambda Q: pump_head(Q) - transfer_line(Q, T, **line)["H"], 1e-7, 1.999e-4)
-
-
-def npsh_available(T, Q, z_suction=0.2, D=0.008, L_suction=0.3, K_suction=0.5):
-    """Net positive suction head available at the pump inlet (m).
-    z_suction: liquid level above the pump inlet (m), L_suction: suction pipe length (m),
-    K_suction: minor-loss coefficient of the suction side (-)."""
-    rho, _, _ = water(T)
-    s = transfer_line(Q, T, D=D, L=L_suction, K_total=K_suction, dz=0.0)
-    return (P_ATM - vapor_pressure(T)) / (rho * G) + z_suction - s["h_f"] - s["h_m"]
-
-
-def npsh_required(Q, a=0.5, b=2.0e7):
-    """Hypothetical NPSH required by the pump (m): NPSH_r = a + b Q^2."""
-    return a + b * Q**2
 
 
 # =====================================================================================
@@ -187,21 +124,6 @@ def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.
 
 
 # =====================================================================================
-# A-101: stirring
-# =====================================================================================
-def stirring(N, T, D_imp=0.04):
-    """Impeller Reynolds number Re = rho N D^2 / mu (-), power number Np (-) and power P = Np rho N^3 D^5 (W).
-    N: rotational speed (rev/s), D_imp: impeller diameter (m).
-    Np(Re): the two asymptotes of the classic Rushton-turbine curve, laminar 70/Re and turbulent 5.0,
-    joined as Np = max(70/Re, 5.0). This is rough in the transition region, and the regime label says so."""
-    rho, mu, _ = water(T)
-    Re = rho * N * D_imp**2 / mu
-    Np = max(70 / Re, 5.0)
-    regime = "laminar" if Re < 10 else "turbulent" if Re > 1e4 else "transitional"
-    return {"Re": Re, "Np": Np, "P": Np * rho * N**3 * D_imp**5, "regime": regime}
-
-
-# =====================================================================================
 # F-101: plunger filtration
 # =====================================================================================
 def permeability(d, eps_bed):
@@ -251,16 +173,6 @@ def settling(d_fine, T, depth=0.08):
     v = (rho_p - rho) * G * d_fine**2 / (18 * mu)
     Re_p = rho * v * d_fine / mu
     return {"v": v, "t_settle": depth / v, "Re_p": Re_p, "valid": Re_p < 0.1, "rho_p": rho_p}
-
-
-# =====================================================================================
-# D-101: carafe draining
-# =====================================================================================
-def drain_time(h0, D_tank=0.085, d_spout=0.012, Cd=0.6):
-    """Torricelli draining of a tank from liquid height h0 (m) to empty (s):
-    t = (A_tank / (Cd a)) * sqrt(2 h0 / g). D_tank: tank diameter (m), d_spout: outlet diameter (m),
-    Cd: discharge coefficient (-), about 0.6 for a sharp-edged opening."""
-    return (D_tank**2 / (Cd * d_spout**2)) * np.sqrt(2 * h0 / G)
 
 
 def in_target(TDS, EY):
