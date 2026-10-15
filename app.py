@@ -17,9 +17,10 @@ from plant import calibration as cal
 from plant import standards
 from plant import packed_bed as pb
 from plotly.subplots import make_subplots
-from plant.style import COLORS
+from plant.style import COLORS, CSS, card, header, label
 
 st.set_page_config(page_title="AI Barista Plant", page_icon="☕", layout="wide")
+st.markdown(CSS, unsafe_allow_html=True)
 C2K = 273.15
 
 
@@ -65,7 +66,7 @@ for key, default in {"lab": [], "human": [], "ai": [], "last": None, "seed": 0}.
 
 # ---------------------------------------------------------------- sidebar: setpoints
 with st.sidebar:
-    st.markdown("### CONTROL PANEL · AREA 100")
+    st.markdown(label("Area 100 · setpoints") + "<h3 style='margin-top:0'>Control panel</h3>", unsafe_allow_html=True)
     with st.form("setpoints"):
         st.caption("Batch setpoints (R-101)")
         grind = st.slider("Grind size d (µm)", 300, 1200, 800, 10)
@@ -118,14 +119,17 @@ values = {
 }
 
 # ---------------------------------------------------------------- layout
-st.markdown("## ☕ AI BARISTA PLANT")
-st.caption("A French press, modelled and operated like a chemical plant: fluid mechanics, material and energy balances, and an AI operator.")
+st.markdown(header("Fluid mechanics · Flow through a packed bed", "AI Barista Plant",
+                   "A French press is a packed bed. Dimensional analysis and the Ergun equation show how grind size "
+                   "sets the flow, a material balance links it to the cup, and an AI operator picks the recipe."),
+            unsafe_allow_html=True)
 
 VIEWS = ["Plant", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
 view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_visibility="collapsed") or "Plant"
 
 # ---- Plant
 if view == "Plant":
+    st.markdown(label("Live process · model predictions"), unsafe_allow_html=True)
     st.image(plant_svg(values, running=bool(run)), width="stretch")
     cols = st.columns(4)
     cols[0].metric("Strength (TDS)", f"{100 * sim['TDS']:.2f} %", help="Dissolved coffee mass / beverage mass")
@@ -147,7 +151,7 @@ if view == "Trends":
     c1, c2 = st.columns(2)
     fig = go.Figure(go.Scatter(x=t, y=np.array(sim["T"]) - C2K, name="T (TI-102)", line=dict(color=COLORS["alarm"])))
     fig.update_layout(title="Energy balance: brew temperature", xaxis_title="t (s)", yaxis_title="T (°C)", showlegend=True)
-    c1.plotly_chart(fig, width="stretch")
+    c1.plotly_chart(card(fig), width="stretch", theme=None)
     M_E = ph.X_EXTRACTABLE * m_coffee / 1000
     fig = go.Figure()
     fig.add_scatter(x=t, y=np.array(sim["m_l"]) / M_E, name="dissolved (m_l)", line=dict(color=COLORS["coffee"]))
@@ -155,14 +159,15 @@ if view == "Trends":
     fig.add_scatter(x=t, y=np.array(sim["S"]) / M_E, name="inside grains (S)", line=dict(color=COLORS["grey"], dash="dash"))
     fig.update_layout(title="Material balance: where the solubles are", xaxis_title="t (s)",
                       yaxis_title="fraction of extractables (-)", showlegend=True)
-    c2.plotly_chart(fig, width="stretch")
+    c2.plotly_chart(card(fig), width="stretch", theme=None)
     st.caption(f"Time scales at the start of the batch: surface dissolution τ_s = {sim['tau_s']:.1f} s, "
                f"diffusion out of the grains τ_d = {sim['tau_d']:.0f} s. Both grow with grind size, "
                "and τ_d grows as d².")
 
 # ---- Packed bed (Ergun)
 if view == "Packed bed":
-    st.markdown("#### F-101 · the grounds cake is a packed bed (Ergun equation)")
+    st.markdown(label("Start here · F-101"), unsafe_allow_html=True)
+    st.markdown("#### The grounds cake is a packed bed")
     m = st.columns(5)
     m[0].metric("d₃₂ (Sauter)", f"{1e6 * plg['d32']:.0f} µm", help="Surface-weighted mean size, including fines.")
     m[1].metric("d_s (effective)", f"{1e6 * plg['d_s']:.0f} µm", help="Sphericity 0.75 × d₃₂ (Corrochano 2015).")
@@ -190,7 +195,7 @@ if view == "Packed bed":
                           xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)",
                           legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                           margin=dict(l=60, r=20, t=20, b=150), height=470)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(card(fig), width="stretch", theme=None)
         st.caption("Every brewer sits far left, where the viscous term dominates, so pressure drop ∝ μu/d². "
                    "Even espresso at 9 bar has Re_b ≈ 0.16: 9 bar, still laminar. "
                    "Espresso and pour-over use typical recipes (assumed values, listed in plant/packed_bed.py); "
@@ -210,7 +215,7 @@ if view == "Packed bed":
                           xaxis_title="Sauter diameter d₃₂ (µm)", yaxis_title="constant that fits the data, C_eff (-)",
                           legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                           margin=dict(l=60, r=20, t=20, b=150), height=470)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(card(fig), width="stretch", theme=None)
         st.caption(f"Each measured permeability, turned round into the viscous constant it implies: C_eff = d_s²ε³/(k(1−ε)²). "
                    f"Ergun says 150. Espresso beds need {rows.C_eff.min():.0f}–{rows.C_eff.max():.0f}, so Ergun over-predicts "
                    f"permeability {rows.ratio.min():.1f}–{rows.ratio.max():.0f}× and the gap grows with grind size. These beds are "
@@ -233,8 +238,8 @@ if view == "Packed bed":
     for f in figs:
         f.update_layout(legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                         margin=dict(l=60, r=20, t=20, b=130), height=400)
-    c1.plotly_chart(figs[0], width="stretch")
-    c2.plotly_chart(figs[1], width="stretch")
+    c1.plotly_chart(card(figs[0]), width="stretch", theme=None)
+    c2.plotly_chart(card(figs[1]), width="stretch", theme=None)
     st.caption("Left: in dimensional form, three beds that differ in grain size and porosity give three separate curves. "
                "Right: the same points as f_p vs Re_b fall on one curve. Here the collapse is built in (the points are Ergun "
                "evaluated); Ergun's 1952 discovery was that measured beds collapse like this.")
@@ -249,7 +254,7 @@ if view == "Packed bed":
     fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="plunge force F_p (N)", yaxis_rangemode="tozero",
                       legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                       margin=dict(l=60, r=20, t=20, b=120), height=380)
-    c1.plotly_chart(fig, width="stretch")
+    c1.plotly_chart(card(fig), width="stretch", theme=None)
     fig = go.Figure()
     fig.add_hrect(y0=100 * ph.EY_RANGE[0], y1=100 * ph.EY_RANGE[1], fillcolor=COLORS["ok"], opacity=0.12, line_width=0)
     fig.add_scatter(x=sw["grind_um"], y=[100 * e for e in sw["EY"]], name="extraction yield EY", line=dict(color=COLORS["coffee"], width=3))
@@ -258,7 +263,7 @@ if view == "Packed bed":
                       yaxis_range=[5, 32],
                       legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                       margin=dict(l=60, r=20, t=20, b=120), height=380)
-    c2.plotly_chart(fig, width="stretch")
+    c2.plotly_chart(card(fig), width="stretch", theme=None)
     i_lo, i_hi = 0, len(sw["grind_um"]) - 1
     st.caption(f"Going from {sw['grind_um'][i_hi]:.0f} to {sw['grind_um'][i_lo]:.0f} µm changes extraction from "
                f"{100 * sw['EY'][i_hi]:.0f} % to {100 * sw['EY'][i_lo]:.0f} % but the plunge force only from "
@@ -279,7 +284,7 @@ if view == "Packed bed":
                       xaxis_title="particle diameter (µm)", yaxis_title="volume percent (%)",
                       legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                       margin=dict(l=60, r=20, t=20, b=150), height=430)
-    c1.plotly_chart(fig, width="stretch")
+    c1.plotly_chart(card(fig), width="stretch", theme=None)
     c1.caption(f"Measured espresso grinds (Cameron et al. 2020, Fig. 2B; finer setting = smaller number). Two families: "
                f"fines below 100 µm and boulders. Grinding finer adds fines of the same size. Fines are "
                f"{100 * min(v['fines_volume'] for v in summ.values()):.0f}–{100 * max(v['fines_volume'] for v in summ.values()):.0f} % "
@@ -300,7 +305,7 @@ if view == "Packed bed":
                       yaxis_title="extraction yield EY (%)",
                       legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                       margin=dict(l=60, r=20, t=20, b=150), height=430)
-    c2.plotly_chart(fig, width="stretch")
+    c2.plotly_chart(card(fig), width="stretch", theme=None)
     c2.caption("Measured espresso extraction (Cameron et al. 2020, Fig. 4B, 6 bar). A uniform-bed model, like the grind "
                "explorer above, says finer always extracts more. The data agree down to setting 1.7, then extraction falls: "
                "with too many fines the bed clogs unevenly and water channels through cracks. That's the limit of the "
@@ -319,7 +324,7 @@ if view == "Packed bed":
                         name="Stokes invalid", line=dict(color=COLORS["alarm"], dash="dot"))
         fig.update_layout(xaxis_title="particle diameter (µm)", yaxis_title="time to settle 8 cm (s)", yaxis_type="log",
                           yaxis_range=[np.log10(0.5), np.log10(3e4)], showlegend=True)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(card(fig), width="stretch", theme=None)
 
 # ---- Lab notebook
 if view == "Lab notebook":
@@ -362,7 +367,7 @@ if view == "AI operator":
     s2.caption(f"✅ ideal cup at batch {ah}" if ah else "no ideal cup yet")
 
     fig = go.Figure()
-    fig.add_shape(type="rect", x0=18, x1=22, y0=1.15, y1=1.35, line=dict(color=COLORS["ok"]), fillcolor="rgba(126,231,135,0.12)")
+    fig.add_shape(type="rect", x0=18, x1=22, y0=1.15, y1=1.35, line=dict(color=COLORS["ok"]), fillcolor="rgba(31,157,85,0.10)")
     for who, rows, color in [("you", st.session_state.human, COLORS["human"]), ("AI", st.session_state.ai, COLORS["ai"])]:
         if rows:
             fig.add_scatter(x=[r["EY_measured_pct"] for r in rows], y=[r["TDS_measured_pct"] for r in rows],
@@ -370,7 +375,7 @@ if view == "AI operator":
                             name=who, marker=dict(size=10, color=color), line=dict(color=color, width=1, dash="dot"))
     fig.update_layout(title="Brewing control chart", xaxis_title="extraction yield EY (%)", yaxis_title="strength TDS (%)",
                       xaxis_range=[8, 30], yaxis_range=[0.5, 2.2], showlegend=True)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(card(fig), width="stretch", theme=None)
     if st.session_state.ai:
         st.markdown("**Why the AI chose each batch**")
         st.dataframe(pd.DataFrame(st.session_state.ai).round(2), width="stretch")
@@ -461,7 +466,7 @@ if view == "Engineering notes":
         fig.update_yaxes(title_text="c_h (paper's scale)", row=1, col=1)
         fig.update_layout(title=title, height=460, showlegend=True,
                           legend=dict(orientation="h", x=0, y=-0.22, xanchor="left", yanchor="top"))
-        col.plotly_chart(fig, width="stretch")
+        col.plotly_chart(card(fig), width="stretch", theme=None)
         s = r["summary"]
         lit = cal.DATA[grind]
         rows.append({"grind": grind, "τ_s fit (s)": f"{s['tau_s'][0]:.2g} ({s['tau_s'][1]:.2g}–{s['tau_s'][2]:.2g})",
