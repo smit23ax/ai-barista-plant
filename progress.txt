@@ -23,3 +23,4 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - docs/derivations.html is now generated from plant/steps.py (scripts/build_guide.py), 47 steps, 145 KaTeX expressions. Study guide trimmed to 27 questions.
 - New tests: unused-symbol check, quoted Say numbers match the model. 70 tests pass. Every presenter equation screenshot-checked (46, before the C/T0 split); a long T0 equation was split into two steps.
 - Next: Moroney 2016 calibration, speaking script.
+- docs/speaking_script.md: timed 7.6 min script (1061 spoken words), each section mapped to presenter steps. Moroney calibration blocked: network denies springer hosts; asked alex to upload the PDF.
