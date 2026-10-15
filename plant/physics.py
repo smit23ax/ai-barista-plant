@@ -151,11 +151,29 @@ def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.
 # =====================================================================================
 # F-101: plunger filtration
 # =====================================================================================
+ERGUN_VISCOUS, ERGUN_INERTIAL = 150.0, 1.75   # Ergun (1952) constants for packed beds of near-spherical particles
+
+
 def permeability(d, eps_bed):
-    """Kozeny-Carman permeability k = d^2 eps^3 / (180 (1 - eps)^2) (m^2).
-    d: particle diameter (m), eps_bed: bed porosity (-).
-    [C15] shows this formula can over-predict coffee-bed permeability several-fold, so treat it as an estimate."""
-    return d**2 * eps_bed**3 / (180 * (1 - eps_bed) ** 2)
+    """Permeability k = d^2 eps^3 / (150 (1 - eps)^2) (m^2): the viscous (Kozeny-Carman) limit of Ergun's equation,
+    with Ergun's fitted constant 150 (Carman's derivation gives 180). d: particle diameter (m), eps_bed: bed porosity (-).
+    [C15] shows Kozeny-Carman can over-predict coffee-bed permeability several-fold, so treat it as an estimate."""
+    return d**2 * eps_bed**3 / (ERGUN_VISCOUS * (1 - eps_bed) ** 2)
+
+
+def ergun(u, d, eps_bed, T):
+    """Ergun equation for flow through a packed bed.
+    u: superficial velocity (m/s), d: particle (Sauter) diameter (m), eps_bed: bed porosity (-), T: temperature (K).
+    Returns pressure gradient dP/L (Pa/m) split into viscous and inertial parts, the bed Reynolds number
+    Re_b = rho u d / (mu (1 - eps)) (-) and the bed friction factor f_p = (dP/L) d eps^3 / (rho u^2 (1 - eps)) (-),
+    which must equal 150/Re_b + 1.75."""
+    rho, mu, _ = water(T)
+    viscous = ERGUN_VISCOUS * mu * u * (1 - eps_bed) ** 2 / (eps_bed**3 * d**2)
+    inertial = ERGUN_INERTIAL * rho * u**2 * (1 - eps_bed) / (eps_bed**3 * d)
+    dPdL = viscous + inertial
+    return {"dPdL": dPdL, "viscous": viscous, "inertial": inertial,
+            "Re_b": rho * u * d / (mu * (1 - eps_bed)),
+            "f_p": dPdL * d * eps_bed**3 / (rho * u**2 * (1 - eps_bed)), "inertial_share": inertial / dPdL}
 
 
 def sauter_diameter(d, fines_fraction, d_fine=CELL_SIZE):
@@ -169,9 +187,9 @@ def sauter_diameter(d, fines_fraction, d_fine=CELL_SIZE):
 def plunge(d, T, m_coffee=0.015, plunge_time=20.0, fines_fraction=0.15, D_press=0.085, eps_bed=0.40,
            rho_bulk=400.0, R_mesh=2.0e8, V_liquid=2.3e-4):
     """Force (N) to push the plunger down in plunge_time (s).
-    Darcy's law through the grounds cake (thickness L_cake, m) in series with the mesh (resistance R_mesh, 1/m):
-        dP = mu * u * (L_cake / k + R_mesh),  u = V_liquid / (A * plunge_time) superficial velocity (m/s)
-    k from Kozeny-Carman with the Sauter diameter. D_press: press inner diameter (m), eps_bed: cake porosity (-),
+    Ergun's equation through the grounds cake (thickness L_cake, m) in series with the mesh (resistance R_mesh, 1/m):
+        dP = (dP/L)_Ergun * L_cake + mu * u * R_mesh,  u = V_liquid / (A * plunge_time) superficial velocity (m/s)
+    Ergun is evaluated with the Sauter diameter. D_press: press inner diameter (m), eps_bed: cake porosity (-),
     rho_bulk: cake bulk density (kg/m^3) [C15: 360-480], V_liquid: liquid pushed through the cake (m^3).
     R_mesh, eps_bed and fines_fraction are ASSUMED values; calibrate them by plunging a real press on a scale."""
     _, mu, _ = water(T)
@@ -180,10 +198,12 @@ def plunge(d, T, m_coffee=0.015, plunge_time=20.0, fines_fraction=0.15, D_press=
     d32 = sauter_diameter(d, fines_fraction)
     k = permeability(d32, eps_bed)
     u = V_liquid / (A * plunge_time)
-    dP_cake = mu * u * L_cake / k
+    erg = ergun(u, d32, eps_bed, T)
+    dP_cake = erg["dPdL"] * L_cake
     dP_mesh = mu * u * R_mesh
     return {"force": (dP_cake + dP_mesh) * A, "dP": dP_cake + dP_mesh, "dP_cake": dP_cake,
-            "dP_mesh": dP_mesh, "k": k, "d32": d32, "L_cake": L_cake, "u": u}
+            "dP_mesh": dP_mesh, "k": k, "d32": d32, "L_cake": L_cake, "u": u,
+            "Re_b": erg["Re_b"], "f_p": erg["f_p"], "inertial_share": erg["inertial_share"]}
 
 
 # =====================================================================================

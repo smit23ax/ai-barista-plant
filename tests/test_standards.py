@@ -71,6 +71,10 @@ def test_stokes_units_and_value():
     assert standards.stokes_units_ok()
 
 
+def test_ergun_groups_are_dimensionless():
+    assert standards.ergun_groups_dimensionless()
+
+
 def test_out_of_range_inputs_raise():
     assert standards.extrapolation_guards_ok()
 
@@ -85,7 +89,10 @@ def test_quoted_numbers_match_the_model():
     s = physics.settling(30e-6, T_end)
     assert round(T_end - 273.15) == 68 and round(1000 * s["v"], 1) == 0.2
     assert round(s["t_settle"] / 60) == 7 and round(s["Re_p"], 3) == 0.014 and round(s["rho_p"], -1) == 1150
-    assert round(physics.plunge(800e-6, T_end)["force"]) == 2
+    pl = physics.plunge(800e-6, T_end)
+    assert round(pl["force"]) == 2 and round(pl["Re_b"], 1) == 1.3 and round(100 * pl["inertial_share"], 1) == 1.5
+    assert round(1e6 * pl["d32"]) == 165 and round(1e6 * physics.sauter_diameter(300e-6, 0.15)) == 128
+    assert round(1000 * pl["u"]) == 2
     rho, _, cp = physics.water(366.15)
     C = 0.25 * cp + 0.015 * physics.CP_COFFEE + 0.35 * 840
     assert round(C, -1) == 1370 and round(C / 60) == 23

@@ -54,3 +54,15 @@ def test_stokes_validity_flag():
 def test_invalid_grind_fails_loudly():
     with pytest.raises(ValueError):
         ph.brew(5e-3, 366.15, 240)
+
+
+def test_ergun_dimensionless_form_and_limits():
+    e = ph.ergun(0.002, 165e-6, 0.4, 340.0)
+    assert e["f_p"] == pytest.approx(150 / e["Re_b"] + 1.75, rel=1e-12)
+    slow, fast = ph.ergun(1e-7, 165e-6, 0.4, 340.0), ph.ergun(50.0, 165e-6, 0.4, 340.0)
+    assert slow["inertial_share"] < 1e-4 and fast["inertial_share"] > 0.99      # Kozeny-Carman and Burke-Plummer limits
+
+
+def test_french_press_plunge_is_in_the_viscous_regime():
+    r = ph.plunge(800e-6, 341.0)
+    assert r["inertial_share"] < 0.05 and r["Re_b"] < 10

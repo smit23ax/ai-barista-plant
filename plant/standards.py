@@ -71,6 +71,17 @@ def stokes_units_ok(T=350.0, d=30e-6):
             and np.isclose(v.magnitude, physics.settling(d, T)["v"], rtol=1e-12))
 
 
+def ergun_groups_dimensionless(T=341.0, u=0.002, d=165e-6, eps=0.4):
+    """Ergun's f_p and Re_b evaluated with units must be dimensionless."""
+    rho, mu, _ = physics.water(T)
+    e = physics.ergun(u, d, eps, T)
+    dPdL = e["dPdL"] * UREG("Pa/m")
+    u_, d_, rho_, mu_ = u * UREG("m/s"), d * UREG.m, rho * UREG("kg/m^3"), mu * UREG("Pa*s")
+    f_p = (dPdL * d_ / (rho_ * u_**2) * eps**3 / (1 - eps)).to_base_units()
+    Re_b = (rho_ * u_ * d_ / (mu_ * (1 - eps))).to_base_units()
+    return bool(f_p.dimensionless and Re_b.dimensionless and abs(f_p.magnitude - e["f_p"]) < 1e-9 * e["f_p"])
+
+
 def extrapolation_guards_ok():
     """Water outside 0-100 C and grinds outside 100-2000 um must raise."""
     for call in (lambda: physics.water(400.0), lambda: physics.brew(50e-6, 366.15, 240)):
@@ -92,5 +103,6 @@ def run_checks():
         ("Every symbol has a meaning and an SI unit", not bad_units(), ", ".join(bad_units()) or "parsed by pint"),
         ("No unused symbols in the table", not unused_symbols(), ", ".join(unused_symbols()) or "all used"),
         ("Stokes' law is dimensionally consistent", bool(stokes_units_ok()), "m/s, Re_p dimensionless, matches the model"),
+        ("Ergun's f_p and Re_b are dimensionless", ergun_groups_dimensionless(), "checked with pint"),
         ("No silent extrapolation", extrapolation_guards_ok(), "out-of-range water and grind raise errors"),
     ]
