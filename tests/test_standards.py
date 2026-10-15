@@ -92,6 +92,13 @@ def test_quoted_numbers_match_the_model():
     pl = physics.plunge(800e-6, T_end)
     assert round(pl["force"]) == 3 and round(pl["Re_b"], 1) == 1.0 and round(100 * pl["inertial_share"], 1) == 1.1
     assert round(1e6 * pl["d_s"], -1) == 120
+    mu = lambda T: physics.water(T)[1]
+    assert round(mu(293.15) / mu(T_end), 1) == 2.4 and round(mu(293.15) / mu(368.15), 1) == 3.4
+    f = lambda e: (1 - e) ** 2 / e**3
+    assert round(f(0.30) / f(0.40), 1) == 3.2 and round(f(0.35) / f(0.40), 2) == 1.75 and round(f(0.45) / f(0.40), 2) == 0.59
+    assert round(0.085 / pl["d_s"], -1) == 690
+    from plant import packed_bed
+    assert round(packed_bed.brewer_points(pl, T_end)[0]["Re_b"], 2) == 0.16
     assert round(1e6 * pl["d32"]) == 165 and round(1e6 * physics.sauter_diameter(300e-6, 0.15)) == 128
     assert round(1000 * pl["u"]) == 2
     rho, _, cp = physics.water(366.15)

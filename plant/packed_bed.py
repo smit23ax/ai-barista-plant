@@ -70,3 +70,16 @@ def grind_sweep(grinds_um, T_water, t_steep, m_coffee, m_water, preheated, plung
                      ("Re_b", p["Re_b"]), ("d32_um", 1e6 * p["d32"]), ("TDS", b["TDS"]), ("EY", b["EY"])]:
             out[k].append(float(v))
     return out
+
+
+# Three made-up beds that differ in grain size and packing, for the collapse plot: (label, d_s in m, eps).
+COLLAPSE_BEDS = [("fine, tight (espresso-like)", 75e-6, 0.25), ("medium (French press)", 125e-6, 0.40),
+                 ("coarse, loose", 600e-6, 0.45)]
+C15_RE_RANGE = (0.04, 4.0)   # particle Reynolds numbers measured in Corrochano's coffee beds [C15, Section 4.2]
+
+
+def collapse_data(T, u=np.logspace(-4, 0, 60)):
+    """Ergun evaluated for COLLAPSE_BEDS over superficial velocities u (m/s) at temperature T (K).
+    In dimensional form (dP/L vs u) the beds give three separate curves; as f_p vs Re_b they fall on one.
+    The collapse here is by construction (it's Ergun); Ergun's 1952 point was that measured beds collapse."""
+    return [{"label": lab, "u": u, **physics.ergun(u, d_s, eps, T)} for lab, d_s, eps in COLLAPSE_BEDS]

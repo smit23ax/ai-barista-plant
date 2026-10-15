@@ -183,12 +183,16 @@ if view == "Packed bed":
             fig.add_scatter(x=[b["Re_b"]], y=[b["f_p"]], mode="markers", name=b["name"],
                             marker=dict(symbol=sym, size=16 if live else 12, color=COLORS["ok"] if live else COLORS["grey"],
                                         line=dict(color="#0d1117", width=1)))
+        fig.add_vrect(x0=pb.C15_RE_RANGE[0], x1=pb.C15_RE_RANGE[1], fillcolor=COLORS["coffee"], opacity=0.12, line_width=0)
+        fig.add_scatter(x=[None], y=[None], mode="markers", name="Re_b measured in real coffee beds (Corrochano 2015)",
+                        marker=dict(symbol="square", size=12, color=COLORS["coffee"], opacity=0.35))
         fig.update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-2, 4], yaxis_range=[0, 4],
                           xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)",
                           legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
                           margin=dict(l=60, r=20, t=20, b=150), height=470)
         st.plotly_chart(fig, width="stretch")
         st.caption("Every brewer sits far left, where the viscous term dominates, so pressure drop ∝ μu/d². "
+                   "Even espresso at 9 bar has Re_b ≈ 0.16: 9 bar, still laminar. "
                    "Espresso and pour-over use typical recipes (assumed values, listed in plant/packed_bed.py); "
                    "the dots are Ergun evaluated, not measured.")
     with c2:
@@ -212,6 +216,28 @@ if view == "Packed bed":
                    f"permeability {rows.ratio.min():.1f}–{rows.ratio.max():.0f}× and the gap grows with grind size. These beds are "
                    "compressed far below random packing (ε 0.12–0.33). Error bars cover the permeability scatter only; "
                    "porosity was read off the paper's Fig. 13.")
+
+    st.markdown("##### Why dimensional analysis pays off: three beds, one curve")
+    beds = pb.collapse_data(T_brew_end, np.logspace(-4, 0, 25))
+    c1, c2 = st.columns(2)
+    figs = [go.Figure(), go.Figure()]
+    for b, col, sym, size in zip(beds, [COLORS["water"], COLORS["coffee"], COLORS["warn"]],
+                                 ["circle-open", "diamond-open", "circle"], [13, 9, 5]):
+        figs[0].add_scatter(x=b["u"], y=b["dPdL"], name=b["label"], line=dict(color=col, width=3))
+        figs[1].add_scatter(x=b["Re_b"], y=b["f_p"], name=b["label"], mode="markers",
+                            marker=dict(symbol=sym, size=size, color=col, line=dict(width=2, color=col)))
+    figs[0].update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-4, 0], yaxis_range=[1, 10],
+                          xaxis_title="superficial velocity u (m/s)", yaxis_title="pressure gradient ΔP/L (Pa/m)")
+    figs[1].update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-2, 3.5], yaxis_range=[0, 4],
+                          xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)")
+    for f in figs:
+        f.update_layout(legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
+                        margin=dict(l=60, r=20, t=20, b=130), height=400)
+    c1.plotly_chart(figs[0], width="stretch")
+    c2.plotly_chart(figs[1], width="stretch")
+    st.caption("Left: in dimensional form, three beds that differ in grain size and porosity give three separate curves. "
+               "Right: the same points as f_p vs Re_b fall on one curve. Here the collapse is built in (the points are Ergun "
+               "evaluated); Ergun's 1952 discovery was that measured beds collapse like this.")
 
     st.markdown("##### Grind-size explorer: what grind size does to the plunge and to the cup")
     sw = grind_sweep(float(T_water), float(steep), float(ratio), float(m_coffee), preheated, float(plunge_s), float(fines))

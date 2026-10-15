@@ -45,3 +45,18 @@ def test_grind_sweep_trade_off():
     assert np.all(np.array(sw["force_no_fines"]) < np.array(sw["force"]))
     # the cup changes a lot, the plunge only a little: EY falls by more than half, force by less than half
     assert sw["EY"][-1] / sw["EY"][0] < 0.5 and sw["force"][-1] / sw["force"][0] > 0.5
+
+
+def test_collapse_three_curves_become_one():
+    beds = pb.collapse_data(341.0)
+    # dimensional: at the same u the beds differ by orders of magnitude
+    assert beds[0]["dPdL"][0] / beds[2]["dPdL"][0] > 100
+    # dimensionless: every point is on 150/Re_b + 1.75
+    for b in beds:
+        assert np.allclose(b["f_p"], pb.ergun_curve(b["Re_b"]), rtol=1e-12)
+
+
+def test_corrochano_re_range_is_viscous():
+    lo, hi = pb.C15_RE_RANGE
+    assert (lo, hi) == (0.04, 4.0)
+    assert 1.75 * hi / 150 < 0.05     # inertial share stays under 5 % across their whole range

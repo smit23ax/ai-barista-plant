@@ -292,6 +292,11 @@ ERGUN = {
          "say": "Multiply both sides by d_s epsilon cubed over rho u squared times one minus epsilon. The "
                 "left side becomes f_p, and the right side becomes 150 over Re_b plus 1.75. That's the single "
                 "curve the dimensional analysis promised, now with its shape from physics."},
+        {"title": "Bridge to Darcy: k from the grind",
+         "write": r"u = \frac{k}{\mu} \frac{\Delta P}{L_c}, \quad k = \frac{d_s^2\, \varepsilon^3}{150 (1-\varepsilon)^2}",
+         "say": "Keep only the viscous term and solve for u. That's exactly Darcy's law from our notes, but now "
+                "the permeability k isn't a fudge factor: it's set by grain size squared and the porosity. "
+                "Darcy is Ergun's slow-flow limit."},
         {"title": "Which term matters for coffee?",
          "write": r"\frac{\text{inertial}}{\text{viscous}} = \frac{1.75\, \mathrm{Re}_b}{150}",
          "say": "Divide the two terms. For the standard plunge, u is about 2 millimetres per second and d_s is "
@@ -322,6 +327,10 @@ ERGUN = {
         "The code checks f_p = 150/Re_b + 1.75 to machine precision for every batch.",
         "Doubling the plunge speed doubles the viscous loss but quadruples the inertial one.",
         "Hotter brew has lower mu: the viscous loss falls, the inertial one doesn't change.",
+        "Hot vs cold is a number: water at 20 C is 2.4 times more viscous than at our 68 C plunge (3.4 times "
+        "more than at 95 C), so a cold plunge needs 2.4 times the cake pressure.",
+        "Porosity is a lever: (1 - eps)^2 / eps^3 is 3.2 times bigger at eps = 0.30 than at 0.40, so a bed "
+        "squeezed by pushing harder gets harder to push.",
     ],
     "questions": [
         ("Where do 150 and 1.75 come from?",
@@ -333,6 +342,24 @@ ERGUN = {
          "formula over-predicts coffee permeability by 1.3 to 6 times."),
         ("Why does Re_b include (1 - epsilon)?",
          "It comes from the hydraulic radius of the pores. It makes data for different porosities collapse."),
+        ("What Re_b are you at, and is Ergun valid there?",
+         "About 1 for the plunge and about 0.16 for espresso. Corrochano measured 0.04 to 4 in real coffee "
+         "beds. Ergun's data covered roughly 1 to 2000, and below that the viscous term is just Kozeny-Carman, "
+         "which is built for slow flow. Wall effects are negligible: the press is about 690 grains wide."),
+        ("Espresso uses 9 bar. Isn't that turbulent?",
+         "No. The pores are tiny and the flow is slow, so Re_b is about 0.16. All 9 bar goes into viscous "
+         "friction: 9 bar and still laminar."),
+        ("Coffee grounds aren't spheres.",
+         "Right, so I use the effective diameter d_s = sphericity times d_32, with sphericity 0.75 measured by "
+         "Corrochano 2015."),
+        ("How do you know the porosity?",
+         "I don't measure it; 0.40 is assumed for the loose press cake and is the biggest uncertainty. The force "
+         "scales as (1 - eps)^2 / eps^3, so 0.35 would raise the cake force 1.75 times and 0.45 would lower it "
+         "to 0.59 times. Compressed espresso beds measured 0.12 to 0.33."),
+        ("What breaks first?",
+         "The uniform-bed assumption: channelling (liquid finds a crack), the bed compressing as you push "
+         "(Corrochano measured 0 to 31 percent consolidation under flow), and fines migrating to block the "
+         "mesh. So push slow and steady."),
         ("How would you get into the inertial regime?",
          "A much faster flow or bigger particles, for example water through gravel or a catalyst bed in a "
          "reactor. Coffee is always near the viscous end."),
