@@ -5,3 +5,6 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - plant/ai.py: GP on TDS and EY, acquisition = P(in SCA box). Benchmark 20 seeds, budget 12:
   AI 20/20 hit (median 6 batches), random 9/20 (median 10), one-factor-at-a-time 6/20 (median 10).
 - Next: diagram.py (SVG P&ID), app.py (Streamlit tabs), AppTest, derivations.html (KaTeX), study guide, deploy.
+- app.py done: 6 views (Plant P&ID, Trends, Fluid units, Lab notebook, AI operator head-to-head, Engineering notes). Views use segmented_control (st.tabs reset on rerun).
+- 17 tests pass (14 physics + 3 AppTest). Benchmark saved: AI 20/20 (median 7), OFAT 6/20 (median 10), random 8/20 (median 9).
+- Next: docs/derivations.html (KaTeX server-side), study guide, push once alex creates repo, deploy on Streamlit Cloud.

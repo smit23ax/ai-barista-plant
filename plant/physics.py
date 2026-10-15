@@ -130,12 +130,13 @@ def time_scales(d, T):
 
 
 def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.0,
-         m_vessel=0.35, cp_vessel=840.0, n_points=200):
+         m_vessel=0.35, cp_vessel=840.0, preheated=False, n_points=200):
     """Simulate one French press batch.
     d: grind diameter (m), T_water: kettle water temperature (K), t_steep: steep time (s),
     m_coffee: dry coffee mass (kg), m_water: water mass (kg), T_amb: room temperature (K),
     UA: overall heat-loss conductance of the press (W/K), m_vessel: press mass (kg),
-    cp_vessel: press specific heat (J/(kg K)), glass by default.
+    cp_vessel: press specific heat (J/(kg K)), glass by default, preheated: True if the press was
+    rinsed with hot water first (vessel starts at T_water instead of T_amb).
 
     States: F = undissolved fast (surface) solubles (kg), S = solubles inside particles (kg),
             m_l = solubles dissolved in the bulk liquid (kg), T = brew temperature (K).
@@ -148,7 +149,8 @@ def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.
     # Energy balance, step 1: adiabatic mixing of hot water with room-temperature grounds and vessel
     _, _, cp_w = water(T_water)
     C_total = m_water * cp_w + m_coffee * CP_COFFEE + m_vessel * cp_vessel     # J/K
-    T0 = (m_water * cp_w * T_water + (m_coffee * CP_COFFEE + m_vessel * cp_vessel) * T_amb) / C_total
+    T_vessel = T_water if preheated else T_amb
+    T0 = (m_water * cp_w * T_water + m_coffee * CP_COFFEE * T_amb + m_vessel * cp_vessel * T_vessel) / C_total
 
     V_particles = m_coffee / (RHO_SOLID * (1 - EPS_PARTICLE))   # particle volume, m^3
     V_kernel = EPS_PARTICLE * V_particles                       # liquid inside particles, m^3

@@ -25,15 +25,17 @@ TDS_METER_SD = 0.0003     # standard deviation of the TDS meter reading, - (0.03
 TDS_TARGET, EY_TARGET = 0.0125, 0.20   # centre of the SCA ideal box
 
 
-def run_batch(x, rng=None, m_coffee=0.015):
+def run_batch(x, rng=None, m_coffee=0.015, check_bounds=True, **brew_options):
     """Brew one virtual batch at setpoints x (dict). Returns measured TDS, EY and the full simulation.
     If rng is given, the TDS reading gets meter noise; EY is computed from the measured TDS,
-    exactly as you would in a real lab: EY = TDS * beverage mass / coffee mass."""
+    exactly as you would in a real lab: EY = TDS * beverage mass / coffee mass.
+    check_bounds=False lets a human operator go outside the AI's search box (physics still rejects
+    impossible inputs). brew_options are passed on to physics.brew (e.g. preheated=True)."""
     for k, (lo, hi) in BOUNDS.items():
-        if not lo <= x[k] <= hi:
+        if check_bounds and not lo <= x[k] <= hi:
             raise ValueError(f"{k} = {x[k]} is outside the allowed range {lo}-{hi}.")
     sim = ph.brew(x["grind_um"] * 1e-6, x["T_water_C"] + 273.15, x["steep_s"],
-                  m_coffee=m_coffee, m_water=m_coffee * x["ratio"])
+                  m_coffee=m_coffee, m_water=m_coffee * x["ratio"], **brew_options)
     tds = sim["TDS"] + (rng.normal(0, TDS_METER_SD) if rng is not None else 0.0)
     ey = tds * sim["m_beverage"] / m_coffee
     return {"TDS": tds, "EY": ey, "sim": sim}
@@ -49,8 +51,13 @@ def to_unit(x):
     return (np.array([x[k] for k in NAMES]) - LO) / (HI - LO)
 
 
+STEP = np.array([10.0, 0.5, 10.0, 0.1])   # setpoint resolution an operator can actually dial in
+
+
 def from_unit(u):
-    return {k: float(v) for k, v in zip(NAMES, LO + np.asarray(u) * (HI - LO))}
+    """Unit-cube point to setpoints, rounded to the dial resolution STEP."""
+    x = np.clip(np.round((LO + np.asarray(u) * (HI - LO)) / STEP) * STEP, LO, HI)
+    return {k: float(v) for k, v in zip(NAMES, x)}
 
 
 def fit_gp(X, y):
