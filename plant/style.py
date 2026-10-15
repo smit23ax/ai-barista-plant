@@ -15,10 +15,12 @@ pio.templates["plant"].layout.update(
     title=dict(font=dict(family="Fraunces, Georgia, serif", size=16, color=INK)),
     xaxis=dict(gridcolor="#edf1f6", zeroline=False, linecolor="#c6d0dd", ticks="outside", tickcolor="#c6d0dd"),
     yaxis=dict(gridcolor="#edf1f6", zeroline=False, linecolor="#c6d0dd", ticks="outside", tickcolor="#c6d0dd"),
-    legend=dict(x=1.02, y=1.0, xanchor="left", yanchor="top", bgcolor="rgba(0,0,0,0)"),
+    legend=dict(orientation="h", x=0, y=1.02, xanchor="left", yanchor="bottom", bgcolor="rgba(0,0,0,0)"),
     colorway=[COLORS[k] for k in ["water", "coffee", "ok", "warn", "ai", "alarm", "grey"]],
-    margin=dict(l=60, r=170, t=50, b=50),
+    margin=dict(l=60, r=20, t=60, b=50),
 )
+# No floating toolbar: it covered titles and legends. Charts stay interactive (hover, zoom by drag).
+CHART_CONFIG = {"displayModeBar": False}
 pio.templates.default = "plant"
 
 CSS = f"""
