@@ -17,7 +17,7 @@ from plant import calibration as cal
 from plant import standards
 from plant import packed_bed as pb
 from plotly.subplots import make_subplots
-from plant.style import CHART_CONFIG, COLORS, CSS, card, header, label
+from plant.style import CHART_CONFIG, COLORS, CSS, card, header, label, pfd
 
 st.set_page_config(page_title="AI Barista Plant", page_icon="☕", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
@@ -130,7 +130,7 @@ view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_vi
 # ---- Plant
 if view == "Plant":
     st.markdown(label("Live process · model predictions"), unsafe_allow_html=True)
-    st.image(plant_svg(values, running=bool(run)), width="stretch")
+    st.markdown(pfd(plant_svg(values, running=bool(run))), unsafe_allow_html=True)
     cols = st.columns(4)
     cols[0].metric("Strength (TDS)", f"{100 * sim['TDS']:.2f} %", help="Dissolved coffee mass / beverage mass")
     cols[1].metric("Extraction yield (EY)", f"{100 * sim['EY']:.1f} %", help="Dissolved coffee mass / dry coffee mass")
@@ -431,7 +431,7 @@ if view == "Presenter":
         with right:
             st.markdown("**Say:**")
             st.info(step["say"])
-        st.image(plant_svg(values, highlight=unit["tag"]), width="stretch")
+        st.markdown(pfd(plant_svg(values, highlight=unit["tag"])), unsafe_allow_html=True)
         with st.expander("Degrees of freedom"):
             d = unit["dof"]
             st.markdown("**Unknowns:** " + "; ".join(d["unknowns"]) + "  \n**Equations:** " + "; ".join(d["equations"])

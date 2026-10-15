@@ -78,6 +78,11 @@ h5 {{ font-weight: 600 !important; }}
 [data-testid="stPlotlyChart"] {{ padding: 8px 6px 2px; overflow: hidden; }}
 [data-testid="stImage"] {{ padding: 6px; }}
 [data-testid="stImage"] img {{ border-radius: 10px; }}
+.bp-pfd {{ background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 6px;
+  box-shadow: 0 1px 3px rgba(24,32,43,.05); overflow-x: auto; margin-bottom: 14px; }}
+.bp-pfd > div {{ min-width: 720px; }}
+.bp-swipe {{ display: none; font: 500 12px 'IBM Plex Mono', monospace; color: var(--muted); margin: -8px 0 12px; }}
+@media (max-width: 760px) {{ .bp-swipe {{ display: block; }} }}
 [data-testid="stCaptionContainer"] {{ color: var(--muted); }}
 
 /* equations: light blue-gray box like a worked-example page */
@@ -111,3 +116,9 @@ def card(fig):
     fig.update_xaxes(gridcolor="#edf1f6", linecolor="#c6d0dd", zeroline=False)
     fig.update_yaxes(gridcolor="#edf1f6", linecolor="#c6d0dd", zeroline=False)
     return fig
+
+
+def pfd(svg):
+    """Wrap the process flow diagram in a card. On a narrow phone screen it keeps a readable minimum width
+    and scrolls sideways instead of shrinking the text."""
+    return f'<div class="bp-pfd"><div>{svg}</div></div><p class="bp-swipe">Swipe sideways to see the whole plant.</p>'
