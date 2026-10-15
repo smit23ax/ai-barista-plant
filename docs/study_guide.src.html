@@ -1,11 +1,11 @@
 <h1>AI Barista Plant: study guide</h1>
-<p class="lead">Questions your professor is likely to ask, with short answers you should be able to give from memory. Each answer points to the section of <a href="derivations.html">derivations.html</a> (§1 overview, §2 extraction, §3 energy, §4 filtration, §5 Stokes, §6 AI) or the code that backs it. Practise saying them out loud.</p>
+<p class="lead">Questions your professor is likely to ask, with short answers you should be able to give from memory. Each answer points to the section of <a href="derivations.html">derivations.html</a> (§1 overview, §2 dimensional analysis, §3 Ergun, §4 extraction, §5 energy, §6 filtration, §7 Stokes, §8 AI) or the code that backs it. Practise saying them out loud.</p>
 
 <h2>A. The big picture</h2>
 <h3>1. In one sentence, what is your project?</h3>
-<p>I modelled a French press as a small chemical plant (fluid flow, heat loss and mass transfer), then built an AI operator that uses that model's measurements to find the recipe that hits the ideal cup in as few batches as possible.</p>
+<p>Flow through a packed bed, applied to coffee grind size: the grounds in a French press are a packed bed, so I use dimensional analysis and the Ergun equation to show how grind size (really, the fines) sets the flow, check Ergun against measured coffee-bed data, link it to the cup with a material balance, and finish with an AI operator that picks the recipe.</p>
 <h3>2. Where is the AI, and why is it needed?</h3>
-<p>The AI is the operator. It fits two Gaussian process models (one for strength, one for extraction yield) to the batches brewed so far, then picks the next recipe with the highest probability of landing in the ideal box. Each batch costs coffee and time, so the point is to learn from very few experiments. This is called Bayesian optimization [§6, <code>ai.suggest</code>].</p>
+<p>The AI is the operator. It fits two Gaussian process models (one for strength, one for extraction yield) to the batches brewed so far, then picks the next recipe with the highest probability of landing in the ideal box. Each batch costs coffee and time, so the point is to learn from very few experiments. This is called Bayesian optimization [§8, <code>ai.suggest</code>].</p>
 <h3>3. If you have a physics model, why not just optimize it directly?</h3>
 <p>In the virtual plant I could. In a real kitchen the model's parameters (diffusion time, heat loss, mesh resistance) are uncertain, so the AI treats the plant as a black box and learns from measurements. That is exactly the situation in a real plant, where the model never matches reality perfectly.</p>
 <h3>4. Did the AI actually beat anything?</h3>
@@ -13,56 +13,78 @@
 <h3>5. Why does one-factor-at-a-time do badly?</h3>
 <p>Because the setpoints interact. Grind and steep time both control extraction, and the water ratio controls strength. Changing one at a time cannot see those interactions. A Gaussian process models all four together.</p>
 
-<h2>B. Material balance</h2>
-<h3>6. Define TDS and extraction yield.</h3>
-<p>\(\mathrm{TDS} = m_l/m_{bev}\) is the strength: dissolved mass over beverage mass. \(\mathrm{EY} = m_l/m_c\) is dissolved mass over dry coffee mass. Combining them, \(\mathrm{EY} = \mathrm{TDS}\cdot m_{bev}/m_c\), which is how you get EY from a TDS meter and a scale [§1].</p>
-<h3>7. What are the three pools and why three?</h3>
-<p>Solubles on the broken-cell surface (dissolve fast), solubles inside the grains (must diffuse out slowly), and solubles dissolved in the coffee. Two release mechanisms with very different time scales need two pools. The third is where they end up [§2].</p>
-<h3>8. How do you know your mass balance is right?</h3>
-<p>The three rate equations add to zero, so \(F + S + m_l\) is constant by construction. The app checks it numerically every batch, and the closure error is about \(10^{-15}\) [§2, <code>test_brew_mass_balance_closes</code>].</p>
-<h3>9. Why can't extraction reach 30 %?</h3>
-<p>At equilibrium the concentration inside the grains equals the bulk concentration, so the liquid trapped in the spent grounds keeps some coffee: \(\mathrm{EY}_{\max} = x_E V_b/(V_b + V_k)\) [§2].</p>
-<h3>10. Why does a finer grind extract faster?</h3>
-<p>Diffusion time scales with distance squared: \(\tau_d \propto d^2/D_{eff}\). Halve the grain size and diffusion is four times faster. Finer grinds also have more broken cells at the surface [§2].</p>
-<h3>11. How does temperature come in?</h3>
-<p>Through the Stokes–Einstein relation \(D_{eff} \propto T/\mu\). Hot water is less viscous, so molecules diffuse faster. The viscosity comes from CoolProp, not typed-in numbers [§2].</p>
+<h2>B. Packed bed: dimensional analysis and Ergun (the core)</h2>
+<h3>6. How many dimensionless groups, and which?</h3>
+<p>Six variables (\(\Delta P/L_c, u, d_s, \rho, \mu, \varepsilon\)) minus three base dimensions (kg, m, s) gives three groups by Buckingham Pi: a friction factor \(\Delta P d_s/(L_c\rho u^2)\), a Reynolds number \(\rho u d_s/\mu\), and the porosity itself. Ergun folds the porosity in: \(f_p = \frac{\Delta P}{L_c}\frac{d_s}{\rho u^2}\frac{\varepsilon^3}{1-\varepsilon}\) and \(\mathrm{Re}_b = \rho u d_s/(\mu(1-\varepsilon))\) [§2].</p>
+<h3>7. What does dimensional analysis not tell you?</h3>
+<p>The shape of the function \(f_p(\mathrm{Re}_b)\). That needs physics (the two limits) or experiments. The collapse plot in the app shows the payoff: three beds give three curves in dimensional form and one curve in \(f_p\) vs \(\mathrm{Re}_b\) [§2].</p>
+<h3>8. Where do 150 and 1.75 come from?</h3>
+<p>Ergun (1952) fitted them to many packed-bed experiments. The viscous term is Kozeny–Carman: pores treated as Hagen–Poiseuille tubes sized by the hydraulic radius, which gives 180 (Carman); Ergun's fit gave 150. The inertial term is Burke–Plummer: a fixed number of velocity heads lost per grain, like minor losses in fittings. Adding them gives \(f_p = 150/\mathrm{Re}_b + 1.75\) [§3].</p>
+<h3>9. How does Darcy's law fit in?</h3>
+<p>It is Ergun's slow-flow limit. Keep only the viscous term and solve for \(u\): \(u = (k/\mu)\,\Delta P/L_c\) with \(k = d_s^2\varepsilon^3/(150(1-\varepsilon)^2)\). So the permeability stops being a fudge factor and becomes a function of grind size and porosity [§3].</p>
+<h3>10. What Reynolds number are you at, and which term matters?</h3>
+<p>About 1 for the plunge (\(u \approx\) 2 mm/s, \(d_s \approx\) 124 µm). The inertial/viscous ratio is \(1.75\,\mathrm{Re}_b/150\), so inertia is only about 1 % of the loss. Espresso, at 9 bar, has \(\mathrm{Re}_b \approx\) 0.16: still laminar, and all the pressure goes into viscous friction. Corrochano measured 0.04 to 4 in real coffee beds [§3, Packed bed view].</p>
+<h3>11. Is Ergun valid there?</h3>
+<p>Ergun fitted data from slow to fast flow, and at low \(\mathrm{Re}_b\) his equation reduces to Kozeny–Carman, which is derived for slow (creeping) flow, so the coffee regime is the best-founded part of the curve. Corrochano's coffee beds were in the same range. Wall effects are negligible: the press is about 690 grains wide [§3].</p>
+<h3>12. What does grind size do to the pressure drop?</h3>
+<p>In the viscous regime \(\Delta P/L_c \propto 1/d_s^2\): halve the grain size and the bed is four times harder to push. That's why a small grinder change can choke an espresso shot [§3].</p>
+<h3>13. Why the Sauter diameter, and why do fines matter so much?</h3>
+<p>Pressure drop depends on surface area per volume, and \(d_{32}\) has the same volume-to-surface ratio as the grind. Fines carry most of the surface: with 15 % fines at 30 µm, going from an 800 to a 300 µm grind only moves \(d_{32}\) from 165 to 128 µm. In the app's grind explorer, 1200 → 300 µm changes extraction from 11 % to 28 % but plunge force only from 2.5 to 3.9 N [§3, Packed bed view].</p>
+<h3>14. Coffee grounds aren't spheres.</h3>
+<p>Right. I use \(d_s = \Phi_s d_{32}\) with sphericity \(\Phi_s = 0.75\), measured by Corrochano et al. (2015) [§3].</p>
+<h3>15. Is Ergun accurate for coffee?</h3>
+<p>Not for compressed espresso beds. Using Corrochano's measured grind sizes, sphericity and porosity, Ergun over-predicts the measured permeability by 1.9 to 16 times, and the gap grows with grind size. Put another way, the constant that would fit the data is about 280 to 2400 instead of 150. Those beds are squeezed to porosities of 0.12–0.33, far below normal packing. The French press bed is loose, so I keep 150 and label the result an estimate [Packed bed view, <code>packed_bed.corrochano_check</code>].</p>
+<h3>16. How do you know the porosity?</h3>
+<p>I don't measure it: 0.40 is assumed for the loose press cake, and it's the biggest uncertainty. Force scales as \((1-\varepsilon)^2/\varepsilon^3\), so 0.35 would raise the cake force 1.75 times and 0.45 would lower it to 0.59 times [§3].</p>
+<h3>17. What breaks first?</h3>
+<p>The uniform-bed assumption: channelling (the liquid finds a crack), the bed compressing as you push (Corrochano measured 0 to 31 % consolidation under flow, and \(\varepsilon\) from 0.40 to 0.30 makes the bed 3.2 times harder to push), and fines migrating to block the mesh. So push slow and steady [§3].</p>
+<h3>18. Hot or cold water: does it matter for the plunge?</h3>
+<p>Yes, through viscosity only. Water at 20 °C is 2.4 times more viscous than at the 68 °C plunge, so a cold plunge needs 2.4 times the cake pressure [§3].</p>
 
-<h2>C. Energy balance</h2>
-<h3>12. Why does the brew start at about 76 °C when the kettle is at 93 °C?</h3>
-<p>Adiabatic mixing with cold grounds and a cold 350 g glass press: \(T_0 = \sum m c_p T / \sum m c_p\). Preheating the press removes most of that drop [§3].</p>
-<h3>13. Derive the cooling curve.</h3>
-<p>\(C\,dT/dt = -UA(T - T_\infty)\). Separate and integrate to get \(T = T_\infty + (T_0 - T_\infty)e^{-t/\tau_{th}}\), with \(\tau_{th} = C/UA \approx 22\) min [§3].</p>
-<h3>14. Which numbers did you assume rather than measure?</h3>
+<h2>C. Material balance</h2>
+<h3>19. Define TDS and extraction yield.</h3>
+<p>\(\mathrm{TDS} = m_l/m_{bev}\) is the strength: dissolved mass over beverage mass. \(\mathrm{EY} = m_l/m_c\) is dissolved mass over dry coffee mass. Combining them, \(\mathrm{EY} = \mathrm{TDS}\cdot m_{bev}/m_c\), which is how you get EY from a TDS meter and a scale [§1].</p>
+<h3>20. What are the three pools and why three?</h3>
+<p>Solubles on the broken-cell surface (dissolve fast), solubles inside the grains (must diffuse out slowly), and solubles dissolved in the coffee. Two release mechanisms with very different time scales need two pools. The third is where they end up [§4].</p>
+<h3>21. How do you know your mass balance is right?</h3>
+<p>The three rate equations add to zero, so \(F + S + m_l\) is constant by construction. The app checks it numerically every batch, and the closure error is about \(10^{-15}\) [§4, <code>test_brew_mass_balance_closes</code>].</p>
+<h3>22. Why can't extraction reach 30 %?</h3>
+<p>At equilibrium the concentration inside the grains equals the bulk concentration, so the liquid trapped in the spent grounds keeps some coffee: \(\mathrm{EY}_{\max} = x_E V_b/(V_b + V_k)\) [§4].</p>
+<h3>23. Why does a finer grind extract faster?</h3>
+<p>Diffusion time scales with distance squared: \(\tau_d \propto d^2/D_{eff}\). Halve the grain size and diffusion is four times faster. Finer grinds also have more broken cells at the surface [§4].</p>
+<h3>24. How does temperature come in?</h3>
+<p>Through the Stokes–Einstein relation \(D_{eff} \propto T/\mu\). Hot water is less viscous, so molecules diffuse faster. The viscosity comes from CoolProp, not typed-in numbers [§4].</p>
+
+<h2>D. Energy balance</h2>
+<h3>25. Why does the brew start at about 76 °C when the kettle is at 93 °C?</h3>
+<p>Adiabatic mixing with cold grounds and a cold 350 g glass press: \(T_0 = \sum m c_p T / \sum m c_p\). Preheating the press removes most of that drop [§5].</p>
+<h3>26. Derive the cooling curve.</h3>
+<p>\(C\,dT/dt = -UA(T - T_\infty)\). Separate and integrate to get \(T = T_\infty + (T_0 - T_\infty)e^{-t/\tau_{th}}\), with \(\tau_{th} = C/UA \approx 22\) min [§5].</p>
+<h3>27. Which numbers did you assume rather than measure?</h3>
 <p>\(UA\), the grounds' specific heat, the mesh resistance, cake porosity, fines fraction and TDS meter noise. They're listed in the app's Engineering notes view and marked in the code. Be upfront about this: it shows you know the model's limits.</p>
 
-<h2>D. Fluid mechanics</h2>
-<h3>15. Explain Darcy's law and Kozeny–Carman.</h3>
-<p>Darcy: \(\Delta P = \mu u L/k\) for slow flow through a porous bed. Kozeny–Carman estimates \(k = d_{32}^2\varepsilon^3/(180(1-\varepsilon)^2)\) by treating pores as small Hagen–Poiseuille tubes sized by the hydraulic radius [§4].</p>
-<h3>16. Why the Sauter diameter, and why do fines matter so much?</h3>
-<p>Kozeny–Carman depends on surface area per volume, and \(d_{32}\) is the diameter with the same volume-to-surface ratio. Fines carry a huge share of the surface, so a small mass fraction of fines drags \(d_{32}\), and the permeability, way down [§4].</p>
-<h3>17. Is Kozeny–Carman accurate for coffee?</h3>
-<p>Not very. Corrochano et al. (2015) found it over-predicts measured coffee-bed permeability by a factor of about 1.3 to 6. I use it as an estimate and say so in the app. A real plunge on a kitchen scale would calibrate it [§4].</p>
-<h3>18. Derive Stokes' law and state when it is valid.</h3>
-<p>Weight minus buoyancy equals drag \(3\pi\mu d v\), which gives \(v_t = (\rho_p - \rho)g d^2/18\mu\). It's valid for particle Reynolds number below about 0.1, and the app flags anything above [§5].</p>
-<h3>19. Where does fluid mechanics meet mass transfer in your project?</h3>
-<p>Grind size. Finer grounds extract faster (\(\tau_d \propto d^2\)) but are less permeable (\(k \propto d^2\)), so the press is harder to plunge and more fines end up in the cup. The best recipe is a trade-off between the two [§2, §4].</p>
+<h2>E. Other fluid mechanics</h2>
+<h3>28. Derive Stokes' law and state when it is valid.</h3>
+<p>Weight minus buoyancy equals drag \(3\pi\mu d v\), which gives \(v_t = (\rho_p - \rho)g d^2/18\mu\). It's valid for particle Reynolds number below about 0.1, and the app flags anything above [§7].</p>
+<h3>29. Where does fluid mechanics meet mass transfer in your project?</h3>
+<p>Grind size. Finer grounds extract faster (\(\tau_d \propto d^2\)) but are less permeable (\(k \propto d^2\)), so the press is harder to plunge and more fines end up in the cup. The best recipe is a trade-off between the two [§4, §6].</p>
 
-<h2>E. The AI in detail</h2>
-<h3>20. What is a Gaussian process, without jargon?</h3>
-<p>A smooth curve-fitter that, besides predicting a value at a new recipe, says how unsure it is. It's confident near recipes already brewed and unsure far from them [§6].</p>
-<h3>21. What does the kernel do?</h3>
-<p>It encodes "similar recipes give similar cups". The Matérn 5/2 kernel says similarity decays with distance in setpoint space, with a separate length scale for each setpoint, learned from the data [§6].</p>
-<h3>22. How does the AI pick the next batch?</h3>
-<p>It computes, for 3000 candidate recipes, the probability that both strength and extraction fall inside the SCA box, using each GP's mean and uncertainty, and brews the most likely one [§6].</p>
-<h3>23. What is the exploration vs exploitation trade-off here?</h3>
+<h2>F. The AI in detail</h2>
+<h3>30. What is a Gaussian process, without jargon?</h3>
+<p>A smooth curve-fitter that, besides predicting a value at a new recipe, says how unsure it is. It's confident near recipes already brewed and unsure far from them [§8].</p>
+<h3>31. What does the kernel do?</h3>
+<p>It encodes "similar recipes give similar cups". The Matérn 5/2 kernel says similarity decays with distance in setpoint space, with a separate length scale for each setpoint, learned from the data [§8].</p>
+<h3>32. How does the AI pick the next batch?</h3>
+<p>It computes, for 3000 candidate recipes, the probability that both strength and extraction fall inside the SCA box, using each GP's mean and uncertainty, and brews the most likely one [§8].</p>
+<h3>33. What is the exploration vs exploitation trade-off here?</h3>
 <p>Early on, every prediction is uncertain, so the highest-probability recipes are in unexplored regions (exploration). As data builds up, the AI concentrates near recipes that already look good (exploitation). The probability formula balances both automatically.</p>
-<h3>24. What are the weaknesses of your AI?</h3>
+<h3>34. What are the weaknesses of your AI?</h3>
 <p>It assumes TDS and EY predictions are independent, it starts with three random batches, it has only been tested on the virtual plant, and Gaussian processes scale poorly to many dimensions. Four setpoints is fine.</p>
-<h3>25. How is this different from a PINN or ordinary neural network?</h3>
+<h3>35. How is this different from a PINN or ordinary neural network?</h3>
 <p>A neural network needs lots of data. Bayesian optimization is built for expensive experiments where you get only a handful of data points, and it gives calibrated uncertainty, which is exactly what deciding the next experiment needs.</p>
 
-<h2>F. Honesty questions (professors love these)</h2>
-<h3>26. Is any of the data real?</h3>
-<p>Not yet. Every "measurement" is simulated from the model plus meter noise. The parameters come from published papers wherever possible (Moroney 2016, Corrochano 2015), and the rest are labelled assumptions. The next step is 5–10 real brews to validate.</p>
-<h3>27. What would you do with more time?</h3>
+<h2>G. Honesty questions (professors love these)</h2>
+<h3>36. Is any of the data real?</h3>
+<p>Two parts are checked against real measurements. The extraction model is fitted to Moroney et al.'s (2016) measured concentration curves (their Fig. 5), and the fitted diffusion time for the fine grind, 41 s, matches their 42.2 s. Ergun's permeability is compared with Corrochano et al.'s (2015) 12 measured coffee beds. The batches in the app (and what the AI sees) are simulated from the model plus meter noise; the other parameters come from these papers or are labelled assumptions.</p>
+<h3>37. What would you do with more time?</h3>
 <p>Brew real batches to calibrate \(UA\), the mesh resistance and the diffusion time. Measure the grind distribution from a phone photo. Model a size distribution instead of one size. Add taste scores as a third AI objective.</p>

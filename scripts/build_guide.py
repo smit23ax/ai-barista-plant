@@ -38,10 +38,15 @@ for sym, (meaning, unit) in SYMBOLS.items():
                f'<td>{html.escape(unit)}</td></tr>')
 out.append('</table>')
 out.append('<h2>Sources</h2><ul>'
+           '<li>Ergun (1952), Fluid flow through packed columns, Chem. Eng. Prog. 48, 89–94: the Ergun equation '
+           'and its constants 150 and 1.75.</li>'
            '<li>Moroney et al. (2016), Coffee extraction kinetics in a well mixed system, J. Math. Industry 7: '
-           'time scales, extractable fraction, solubility, cell size.</li>'
-           '<li>Corrochano et al. (2015), J. Food Eng. 150: coffee solid density, particle porosity, bulk density, '
-           'Kozeny–Carman accuracy for coffee beds.</li>'
+           'two-stage extraction model, time scales, extractable fraction, solubility, cell size; Fig. 5 data used '
+           'for the calibration.</li>'
+           '<li>Corrochano et al. (2015), A new methodology to estimate the steady-state permeability of roast and '
+           'ground coffee in packed beds, J. Food Eng. 150, 106–116: coffee solid density, particle porosity, '
+           'sphericity, bulk density, measured bed permeability, grind size and porosity (Tables 1–2, Fig. 13) '
+           'used for the Ergun check, measured Re_p 0.04–4.</li>'
            '<li>SCAA Golden Cup brewing control chart: strength 1.15–1.35 %, extraction 18–22 %.</li>'
            '<li>Water properties: CoolProp (IAPWS-95).</li></ul>')
 

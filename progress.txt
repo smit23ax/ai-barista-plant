@@ -31,3 +31,12 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - plant/calibration.py: least squares on [ln tau_s, ln tau_d, phi, A], covariance from the Jacobian, seeded 95 % band. Synthetic recovery test passes.
 - Best found: fine tau_d 41 s (35-47) contains Moroney 42.2 s; phi 0.44 +/- 0.06 vs geometric 0.46; tau_s unidentifiable (first sample 35 s). Coarse tau_s 22 s vs 19.4; tau_d 647 s (516-811) vs paper's 270 s.
 - plant/standards.py: live checks behind the Engineering-notes badge (5/5). 77 tests pass.
+
+## 2026-10-15 plan v5 (professor's framing: packed bed, Ergun, dimensional analysis, grind size)
+- physics: Darcy replaced by Ergun in plunge(); sphericity 0.75 [C15] gives d_s = Phi_s d32. Standard plunge: Re_b 0.98, inertial 1.1 %, force 2.7 N.
+- steps: new units Dimensional analysis (8 steps) and Ergun (9 steps, incl. Darcy bridge); Ergun Grill-me questions from alex's pasted feedback (claims checked against C15: Re_p 0.04-4, consolidation 0-31 %).
+- Corrochano 2015: Tables 1-2 copied; Fig. 13 porosity is raster, marker centres found by pixel search, overlay-checked (data/corrochano2015_fig13_overlay.png). Best found: Ergun over-predicts measured permeability 1.9-16x (C_eff 280-2400 vs 150). The paper's own 31-521 % errors were not reproduced exactly from its printed inputs; same direction and trend.
+- app: "Packed bed" view (Ergun chart with brewer dots and C15 Re band, C15 check, collapse plot, grind explorer; Stokes in an expander). Screenshots at 1400 and 390 px, no exceptions.
+- docs: speaking script v2 re-centred (992 spoken words, about 7.5 min), study guide 37 Q, derivations 64 steps. 101 tests pass.
+- Note: the earlier "74 vs 77 tests" line above is superseded; counts are whatever pytest reports at each commit.
+- Next: deploy on Streamlit Cloud (alex signs in); Cameron 2020 and Uman 2016 if alex uploads them.

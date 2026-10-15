@@ -344,8 +344,8 @@ ERGUN = {
          "It comes from the hydraulic radius of the pores. It makes data for different porosities collapse."),
         ("What Re_b are you at, and is Ergun valid there?",
          "About 1 for the plunge and about 0.16 for espresso. Corrochano measured 0.04 to 4 in real coffee "
-         "beds. Ergun's data covered roughly 1 to 2000, and below that the viscous term is just Kozeny-Carman, "
-         "which is built for slow flow. Wall effects are negligible: the press is about 690 grains wide."),
+         "beds. At low Re_b Ergun reduces to Kozeny-Carman, which is derived "
+         "for slow (creeping) flow, so this is the best-founded end of the curve. Wall effects are negligible: the press is about 690 grains wide."),
         ("Espresso uses 9 bar. Isn't that turbulent?",
          "No. The pores are tiny and the flow is slow, so Re_b is about 0.16. All 9 bar goes into viscous "
          "friction: 9 bar and still laminar."),
