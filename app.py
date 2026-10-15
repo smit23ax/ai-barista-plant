@@ -12,6 +12,7 @@ import streamlit as st
 from plant import physics as ph
 from plant import ai
 from plant.diagram import plant_svg
+from plant import steps as presenter_steps
 from plant.style import COLORS
 
 st.set_page_config(page_title="AI Barista Plant", page_icon="☕", layout="wide")
@@ -116,7 +117,7 @@ values = {
 st.markdown("## ☕ AI BARISTA PLANT")
 st.caption("A French press, modelled and operated like a chemical plant: fluid mechanics, material and energy balances, and an AI operator.")
 
-VIEWS = ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Engineering notes"]
+VIEWS = ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
 view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_visibility="collapsed") or "Plant"
 
 # ---- Plant
@@ -293,6 +294,52 @@ if view == "AI operator":
             rows.append({"strategy": label, "reached ideal cup": f"{len(hits)} / {bench['seeds']}",
                          "median batches (when reached)": float(np.median(hits)) if hits else None})
         st.table(pd.DataFrame(rows))
+
+# ---- Presenter: Write / Say teleprompter with a Grill-me quiz
+if view == "Presenter":
+    names = list(presenter_steps.UNITS)
+    top = st.columns([3, 1, 1])
+    unit_name = top[0].selectbox("Unit", names, key="p_unit")
+    grill = top[1].toggle("Grill me", key="p_grill")
+    if top[2].button("⏱ Start timer", key="p_timer"):
+        st.session_state.p_t0 = time.time()
+    unit = presenter_steps.UNITS[unit_name]
+    if st.session_state.get("p_last_unit") != unit_name:
+        st.session_state.p_i, st.session_state.p_last_unit = 0, unit_name
+    n = len(unit["steps"])
+    if grill:
+        st.markdown(f"#### Grill me: {unit['title']}")
+        st.caption("Answer out loud first, then open the question to check yourself.")
+        for k, (q, a) in enumerate(unit["questions"], 1):
+            with st.expander(f"Q{k}. {q}"):
+                st.write(a)
+    else:
+        def move(delta):   # callback runs before the rerun, so the buttons' disabled state is current
+            st.session_state.p_i = min(max(st.session_state.p_i + delta, 0), n - 1)
+        i = st.session_state.p_i
+        nav = st.columns([1, 1, 4])
+        nav[0].button("◀ Back", key="p_prev", disabled=i == 0, on_click=move, args=(-1,))
+        nav[1].button("Next ▶", key="p_next", disabled=i == n - 1, on_click=move, args=(1,))
+        t0 = st.session_state.get("p_t0")
+        clock = f" · ⏱ {int((time.time() - t0) // 60)}:{int((time.time() - t0) % 60):02d}" if t0 else ""
+        nav[2].markdown(f"**Step {i + 1} of {n}**{clock}  \nSign convention: {unit['sign']}")
+        step = unit["steps"][i]
+        left, right = st.columns([1, 1])
+        with left:
+            st.markdown(f"##### {i + 1}. {step['title']}")
+            st.markdown("**Write:**")
+            st.latex(step["write"])
+        with right:
+            st.markdown("**Say:**")
+            st.info(step["say"])
+        st.image(plant_svg(values, highlight=unit["tag"]), width="stretch")
+        with st.expander("Degrees of freedom"):
+            d = unit["dof"]
+            st.markdown("**Unknowns:** " + "; ".join(d["unknowns"]) + "  \n**Equations:** " + "; ".join(d["equations"])
+                        + "  \n**Specified:** " + ", ".join(d["specified"]) + f"  \n**Result:** {d['result']}")
+        with st.expander("Physical checks"):
+            for c in unit["checks"]:
+                st.markdown(f"- {c}")
 
 # ---- Engineering notes
 if view == "Engineering notes":

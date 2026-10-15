@@ -9,3 +9,10 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - 17 tests pass (14 physics + 3 AppTest). Benchmark saved: AI 20/20 (median 7), OFAT 6/20 (median 10), random 8/20 (median 9).
 - Next: docs/derivations.html (KaTeX server-side), study guide, push once alex creates repo, deploy on Streamlit Cloud.
 - docs: derivations.html (280 KaTeX expressions, strict parse) and study_guide.html (33 Q&A), screenshot-checked.
+
+## 2026-10-15 plan v4, iteration 1 (smallest success check)
+- plant/steps.py: Stokes settling (T-101) in Write/Say format, 13 steps, sign convention, DOF, physical checks, 6 grill questions, SYMBOLS table.
+- tests/test_standards.py: symbol audit (fails on a broken equation), strict KaTeX parse via node (docs/package.json), pint unit check of Stokes cross-checked with physics.settling, extrapolation guards. 20 tests.
+- app.py: Presenter view (teleprompter, Back/Next via callbacks, timer, Grill-me toggle, diagram highlight via plant_svg(highlight=tag)).
+- Verified: 38/38 tests pass; screenshots at 1400 px and 390 px, no exceptions. Fixed a negative-timer display bug found in the screenshot.
+- Next: convert the remaining units, Moroney calibration, speaking script.

@@ -31,10 +31,16 @@ def _label(x, y, name, sub):
     return f'<text x="{x}" y="{y}" class="eq">{name}</text><text x="{x}" y="{y + 15}" class="sub">{sub}</text>'
 
 
-def plant_svg(v, running=False):
+# Bounding boxes (x, y, width, height) used to highlight one unit in presenter mode.
+UNIT_BOXES = {"E-101": (60, 150, 160, 200), "P-101": (230, 380, 100, 110), "SR-101": (180, 45, 150, 90),
+              "R-101": (485, 45, 160, 390), "F-101": (690, 395, 80, 110), "D-101": (790, 195, 100, 175),
+              "T-101": (880, 380, 105, 135)}
+
+
+def plant_svg(v, running=False, highlight=None):
     """v: dict of live values (already formatted strings) and alarm flags. Keys used:
     T_kettle, Q_pump, H_pump, npsh, cav_alarm, grind, T_brew, TDS, EY, stir_Re, plunge_F, plug_alarm,
-    settle_t, drain_t, in_box."""
+    settle_t, drain_t, in_box. highlight: a unit tag from UNIT_BOXES to outline, or None."""
     tds_color = VALUE if v.get("in_box") else WARN
     pump_color = ALARM if v.get("cav_alarm") else GREY
     filt_color = ALARM if v.get("plug_alarm") else GREY
@@ -110,5 +116,10 @@ def plant_svg(v, running=False):
              f'<path d="M955 435 q20 0 20 15 q0 15 -22 15" fill="none" stroke="{GREY}" stroke-width="2"/>')
     s.append(_label(930, 500, "T-101", "CUP"))
     s.append(_tag(895, 395, "KI-102", v["settle_t"]))
+    if highlight in UNIT_BOXES:
+        x, y, w, h = UNIT_BOXES[highlight]
+        s.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="none" stroke="{VALUE}" '
+                 f'stroke-width="2.5" stroke-dasharray="8 5"><animate attributeName="opacity" values="1;0.35;1" '
+                 f'dur="1.6s" repeatCount="indefinite"/></rect>')
     s.append("</svg>")
     return "".join(s)

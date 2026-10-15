@@ -16,7 +16,7 @@ def test_app_runs_a_batch_and_an_ai_batch():
 
 def test_every_view_renders():
     at = AppTest.from_file("../app.py", default_timeout=120).run()
-    for view in ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Engineering notes"]:
+    for view in ["Plant", "Trends", "Fluid units", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]:
         at.segmented_control[0].set_value(view).run()
         assert not at.exception, view
 
@@ -28,3 +28,22 @@ def test_cavitation_alarm_trips_near_boiling():
     temp.set_value(99.0)
     at.button[0].click().run()
     assert any("CAVITATION" in e.value for e in at.error)              # 99 C: NPSH margin is gone
+
+
+def test_presenter_clicks_through_every_step_and_grill_me():
+    from plant.steps import UNITS
+    at = AppTest.from_file("../app.py", default_timeout=120).run()
+    at.segmented_control[0].set_value("Presenter").run()
+    for name, unit in UNITS.items():
+        at.selectbox(key="p_unit").set_value(name).run()
+        assert at.session_state.p_i == 0
+        for i in range(1, len(unit["steps"])):
+            at.button(key="p_next").click().run()
+            assert not at.exception, (name, i)
+            assert at.session_state.p_i == i
+            assert unit["steps"][i]["write"] in at.latex[0].value
+        assert at.button(key="p_next").disabled
+        at.toggle(key="p_grill").set_value(True).run()
+        assert not at.exception
+        assert len(at.expander) == len(unit["questions"])
+        at.toggle(key="p_grill").set_value(False).run()
