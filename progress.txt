@@ -24,3 +24,10 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - New tests: unused-symbol check, quoted Say numbers match the model. 70 tests pass. Every presenter equation screenshot-checked (46, before the C/T0 split); a long T0 equation was split into two steps.
 - Next: Moroney 2016 calibration, speaking script.
 - docs/speaking_script.md: timed 7.6 min script (1061 spoken words), each section mapped to presenter steps. Moroney calibration blocked: network denies springer hosts; asked alex to upload the PDF.
+
+## 2026-10-15 plan v4, iteration 3 (calibration + standards badge)
+- alex uploaded Moroney 2016 PDF. Figure 5 is vector: 6 fine + 7 coarse points read from PDF drawing commands, axes from tick fits; re-solving the paper's eqs (25)-(28) reproduces its printed curves (max diff 0.04), confirming t is in units of t_s. Overlay image: data/moroney2016_fig5_overlay.png.
+- The experiment is a well-mixed 60 g / 0.5 L immersion (paper p.7), i.e. the same situation as the press (earlier notes wrongly said drip filter).
+- plant/calibration.py: least squares on [ln tau_s, ln tau_d, phi, A], covariance from the Jacobian, seeded 95 % band. Synthetic recovery test passes.
+- Best found: fine tau_d 41 s (35-47) contains Moroney 42.2 s; phi 0.44 +/- 0.06 vs geometric 0.46; tau_s unidentifiable (first sample 35 s). Coarse tau_s 22 s vs 19.4; tau_d 647 s (516-811) vs paper's 270 s.
+- plant/standards.py: live checks behind the Engineering-notes badge (5/5). 77 tests pass.

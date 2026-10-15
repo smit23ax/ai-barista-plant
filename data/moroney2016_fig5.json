@@ -1,0 +1,13 @@
+{
+  "source": "Moroney, Lee, O'Brien, Suijver, Marra (2016), Coffee extraction kinetics in a well mixed system, J. Math. Industry 7:3, Figure 5 panels (a) and (d), page 17.",
+  "experiment": "60 g of coffee grind mixed with 0.5 L of hot water, well mixed; average concentration of extracted solubles measured over time (paper section 3, page 7). Data originally from Moroney et al. 2015, ref. [5] of the paper.",
+  "extraction_method": "Figure is vector graphics. Marker centres read from the PDF drawing commands (PyMuPDF get_drawings, fill colour 0.3/0.3/0.6). Axes calibrated by linear fits to the major tick marks (max tick residual 0.02 in t, 0.0002 in c_h). Axis meaning verified by re-solving the paper's equations (25)-(28) with its parameters and matching its printed curves to within 0.04.",
+  "time_unit": "t is dimensionless on the surface-dissolution (inner) time scale: physical time = t * t_s, with t_s = 1.184 s (fine) and 19.389 s (coarse), page 10.",
+  "concentration_unit": "c_h is dimensionless (inner concentration scale); only its shape is used, with a fitted amplitude.",
+  "fine": {"grind": "JK drip filter grind", "t_s": 1.184, "t_d": 42.231,
+           "t": [29.35, 41.85, 74.31, 125.55, 294.93, 421.75],
+           "c_h": [1.577, 1.727, 1.871, 1.9711, 1.9774, 1.9774]},
+  "coarse": {"grind": "Cimbali #20 grind", "t_s": 19.389, "t_d": 270.493,
+             "t": [1.49, 3.05, 6.12, 11.27, 15.44, 23.15, 30.38],
+             "c_h": [0.7865, 1.0392, 1.1649, 1.2494, 1.2903, 1.3748, 1.4221]}
+}

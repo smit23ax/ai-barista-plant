@@ -66,6 +66,38 @@ def time_scales(d, T):
     return TAU_S_REF * (d / D_REF) ** 3 * temp_factor, TAU_D_REF * (d / D_REF) ** 2 * temp_factor
 
 
+def extraction_rates(F, S, m_l, tau_s, tau_d, V_bulk, V_kernel):
+    """Material balance rates (kg/s) of the three pools: surface F, in-grain S, dissolved m_l (all kg).
+    tau_s, tau_d: surface dissolution and diffusion time scales (s); V_bulk, V_kernel: bulk liquid and
+    in-grain liquid volumes (m^3). The three rates sum to zero, so mass is conserved exactly."""
+    c = m_l / V_bulk                        # bulk concentration, kg/m^3
+    c_k = S / V_kernel                      # concentration inside particles, kg/m^3
+    dF = -(F / tau_s) * (1 - c / C_SAT)     # surface dissolution, slows near saturation
+    dS = -(V_kernel / tau_d) * (c_k - c)    # diffusion out of particles
+    return dF, dS, -dF - dS
+
+
+def liquid_volumes(m_coffee, m_water, T):
+    """Liquid held inside the grains V_kernel and bulk liquid around them V_bulk (m^3) for a dose of
+    m_coffee (kg) in m_water (kg) at temperature T (K)."""
+    V_kernel = EPS_PARTICLE * m_coffee / (RHO_SOLID * (1 - EPS_PARTICLE))
+    return m_water / water(T)[0] - V_kernel, V_kernel
+
+
+def extraction_isothermal(t_eval, tau_s, tau_d, phi, m_coffee, m_water, T):
+    """Fraction of the extractable solubles dissolved, m_l / M_E (-), at times t_eval (s) for a well-mixed
+    batch held at constant temperature T (K). Same three-pool balance as brew(), with the time scales
+    tau_s, tau_d (s) and the fast fraction phi (-) given directly, as needed when fitting to data."""
+    V_bulk, V_kernel = liquid_volumes(m_coffee, m_water, T)
+    M_E = X_EXTRACTABLE * m_coffee
+    sol = solve_ivp(lambda t, y: extraction_rates(*y, tau_s, tau_d, V_bulk, V_kernel),
+                    (0, float(np.max(t_eval))), [phi * M_E, (1 - phi) * M_E, 0.0],
+                    t_eval=t_eval, method="LSODA", rtol=1e-9, atol=1e-13)
+    if not sol.success:
+        raise RuntimeError(f"ODE solver failed: {sol.message}")
+    return sol.y[2] / M_E
+
+
 def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.0,
          m_vessel=0.35, cp_vessel=840.0, preheated=False, n_points=200):
     """Simulate one French press batch.
@@ -89,22 +121,15 @@ def brew(d, T_water, t_steep, m_coffee=0.015, m_water=0.250, T_amb=295.15, UA=1.
     T_vessel = T_water if preheated else T_amb
     T0 = (m_water * cp_w * T_water + m_coffee * CP_COFFEE * T_amb + m_vessel * cp_vessel * T_vessel) / C_total
 
-    V_particles = m_coffee / (RHO_SOLID * (1 - EPS_PARTICLE))   # particle volume, m^3
-    V_kernel = EPS_PARTICLE * V_particles                       # liquid inside particles, m^3
-    rho_w0, _, _ = water(T_water)
-    V_bulk = m_water / rho_w0 - V_kernel                        # bulk liquid around the particles, m^3
+    V_bulk, V_kernel = liquid_volumes(m_coffee, m_water, T_water)   # bulk and in-grain liquid, m^3
     M_E = X_EXTRACTABLE * m_coffee
     phi = fast_fraction(d)
 
     def rhs(t, y):
         F, S, m_l, T = y
         tau_s, tau_d = time_scales(d, T)
-        c = m_l / V_bulk                        # bulk concentration, kg/m^3
-        c_k = S / V_kernel                      # concentration inside particles, kg/m^3
-        dF = -(F / tau_s) * (1 - c / C_SAT)     # surface dissolution, slows near saturation
-        dS = -(V_kernel / tau_d) * (c_k - c)    # diffusion out of particles
         dT = -UA * (T - T_amb) / C_total        # energy balance, step 2: heat loss to room
-        return [dF, dS, -dF - dS, dT]
+        return [*extraction_rates(F, S, m_l, tau_s, tau_d, V_bulk, V_kernel), dT]
 
     t_eval = np.linspace(0, t_steep, n_points)
     sol = solve_ivp(rhs, (0, t_steep), [phi * M_E, (1 - phi) * M_E, 0.0, T0],

@@ -1,31 +1,11 @@
 """Professor-standard compliance checks: symbols defined with SI units, strict KaTeX, dimensional
 consistency (pint), and no silent extrapolation."""
-import json, os, re, shutil, subprocess
-import numpy as np
-import pint
+import json, os, shutil, subprocess
 import pytest
-from plant import physics, steps
+from plant import physics, standards, steps
 
 HERE = os.path.dirname(__file__)
-# Formatting commands that are not symbols.
-NON_SYMBOLS = [r"\frac", r"\Rightarrow", r"\rightarrow", r"\log_{10}", r"\times", r"\pm", r"\!", r"\left", r"\right", r"\cdot", r"\sum", r"\exp", r"\ln",
-               r"\sqrt", r"\;", r"\,", r"\quad", r"\int", r"\approx", r"\propto", r"\max"]
-
-
-def undefined_symbols(tex):
-    """Return what is left of an equation after removing every SYMBOLS entry, formatting command,
-    number and operator. Anything alphabetic left over is an undefined symbol."""
-    s = re.sub(r"\\text\{[^}]*\}", " ", tex).replace(r"\mathrm{d}", " ")
-    s = re.sub(r"(?<![A-Za-z\\])e\^", " ^", s)          # Euler's number in e^{...}
-    for cmd in NON_SYMBOLS:
-        s = s.replace(cmd, " ")
-    for sym in sorted(steps.SYMBOLS, key=len, reverse=True):
-        s = re.sub(r"(?<![A-Za-z\\])" + re.escape(sym) + r"(?![A-Za-z_'])", " ", s)
-    return re.findall(r"\\?[A-Za-z]+", s)
-
-
-def all_equations():
-    return [(name, st["write"]) for name, unit in steps.UNITS.items() for st in unit["steps"]]
+undefined_symbols, all_equations = standards.undefined_symbols, standards.all_equations
 
 
 @pytest.mark.parametrize("unit,tex", all_equations())
@@ -38,17 +18,11 @@ def test_symbol_audit_catches_a_broken_equation():
 
 
 def test_symbol_table_has_no_unused_entries():
-    tex = " ".join(t for _, t in all_equations())
-    unused = [k for k in steps.SYMBOLS
-              if not re.search(r"(?<![A-Za-z\\])" + re.escape(k) + r"(?![A-Za-z_'])", tex)]
-    assert unused == []
+    assert standards.unused_symbols() == []
 
 
 def test_every_symbol_has_meaning_and_si_unit():
-    ureg = pint.UnitRegistry()
-    for sym, (meaning, unit) in steps.SYMBOLS.items():
-        assert meaning.strip(), sym
-        ureg(unit.replace("^", "**"))   # raises if the unit string is not a real unit
+    assert standards.bad_units() == []
 
 
 def test_every_unit_is_complete():
@@ -56,6 +30,10 @@ def test_every_unit_is_complete():
         assert u["sign"] and u["dof"]["result"] and len(u["steps"]) >= 4, name
         assert all(st["title"] and st["write"] and st["say"] for st in u["steps"]), name
         assert len(u["checks"]) >= 3 and len(u["questions"]) >= 3, name
+
+
+def test_app_badge_checks_all_pass():
+    assert all(ok for _, ok, _ in standards.run_checks())
 
 
 def node_katex():
@@ -88,28 +66,13 @@ def test_katex_check_catches_a_broken_equation():
     assert len(run_katex([r"\frac{1}{"])) == 1
 
 
-# ---------- dimensional consistency with pint, cross-checked against the physics code ----------
-ureg = pint.UnitRegistry()
-
-
+# ---------- dimensional consistency and extrapolation guards ----------
 def test_stokes_units_and_value():
-    rho, mu, _ = physics.water(350.0)
-    d = 30e-6 * ureg.m
-    rho_p = (physics.RHO_SOLID * (1 - physics.EPS_PARTICLE) + rho * physics.EPS_PARTICLE) * ureg("kg/m^3")
-    g = physics.G * ureg("m/s^2")
-    v = ((rho_p - rho * ureg("kg/m^3")) * g * d**2 / (18 * mu * ureg("Pa*s"))).to_base_units()
-    assert v.units == ureg("m/s").units
-    assert np.isclose(v.magnitude, physics.settling(30e-6, 350.0)["v"], rtol=1e-12)
-    Re = (rho * ureg("kg/m^3") * v * d / (mu * ureg("Pa*s"))).to_base_units()
-    assert Re.dimensionless
+    assert standards.stokes_units_ok()
 
 
-# ---------- no silent extrapolation ----------
 def test_out_of_range_inputs_raise():
-    with pytest.raises(ValueError):
-        physics.water(400.0)
-    with pytest.raises(ValueError):
-        physics.brew(50e-6, 366.15, 240)
+    assert standards.extrapolation_guards_ok()
 
 
 # ---------- numbers quoted in the Say lines match the model (standard recipe) ----------
