@@ -1,0 +1,219 @@
+<h1>AI Barista Plant: derivations</h1>
+<p class="lead">Every model in the app, derived step by step. Every symbol is defined where it first appears and collected in the <a href="#sec-symbols">symbol table</a>. SI units throughout. The code that implements each result is named in brackets, e.g. [<code>physics.brew</code>].</p>
+
+<nav class="toc">
+<a href="#sec-defs">1. What we measure</a>
+<a href="#sec-energy">2. Energy balance (E-101, R-101)</a>
+<a href="#sec-mass">3. Material balance on extraction (R-101)</a>
+<a href="#sec-pump">4. Pump and transfer line (P-101)</a>
+<a href="#sec-npsh">5. Cavitation (P-101)</a>
+<a href="#sec-stir">6. Stirring (A-101)</a>
+<a href="#sec-filter">7. Plunge filtration (F-101)</a>
+<a href="#sec-stokes">8. Settling of fines (T-101)</a>
+<a href="#sec-torricelli">9. Draining the carafe (D-101)</a>
+<a href="#sec-ai">10. The AI operator</a>
+<a href="#sec-assume">11. Assumptions and limits</a>
+<a href="#sec-symbols">12. Symbol table</a>
+<a href="#sec-sources">13. Sources</a>
+</nav>
+
+<h2 id="sec-defs">1. What we measure: strength and extraction yield</h2>
+<p>Let \(m_c\) be the mass of dry ground coffee (kg), \(m_l\) the mass of coffee solids dissolved in the drink (kg), and \(m_{bev}\) the mass of the finished beverage (kg). Two numbers describe a cup:</p>
+$$\mathrm{TDS} = \frac{m_l}{m_{bev}}, \qquad \mathrm{EY} = \frac{m_l}{m_c}$$
+<p>\(\mathrm{TDS}\) (total dissolved solids, dimensionless) is the <em>strength</em>: how concentrated the drink is. \(\mathrm{EY}\) (extraction yield, dimensionless) is how much of the coffee we managed to dissolve. Dividing one by the other eliminates \(m_l\):</p>
+$$\mathrm{EY} = \mathrm{TDS}\,\frac{m_{bev}}{m_c}$$
+<p>This is how a real lab gets \(\mathrm{EY}\): measure \(\mathrm{TDS}\) with a meter, weigh the beverage and the dry coffee. The app does exactly this with its noisy virtual meter [<code>ai.run_batch</code>]. The Specialty Coffee Association "Golden Cup" ideal box is \(0.0115 \le \mathrm{TDS} \le 0.0135\) and \(0.18 \le \mathrm{EY} \le 0.22\).</p>
+<p class="phys"><b>Physical meaning.</b> Strength is what your tongue reads as "weak or strong". Extraction is what it reads as "sour (under-extracted) or bitter (over-extracted)". They are different, which is why the target is a box, not a line.</p>
+
+<h2 id="sec-energy">2. Energy balance: kettle, mixing and cooling</h2>
+<h3>2.1 Instant mixing</h3>
+<p>Hot water of mass \(m_w\) (kg), specific heat \(c_{p,w}\) (J kg⁻¹ K⁻¹) and temperature \(T_w\) (K) is poured onto grounds of mass \(m_c\) and specific heat \(c_{p,c}\) (J kg⁻¹ K⁻¹), in a press (vessel) of mass \(m_v\) (kg) and specific heat \(c_{p,v}\) (J kg⁻¹ K⁻¹). The grounds start at room temperature \(T_\infty\) (K) and the vessel at \(T_v\) (K), which equals \(T_\infty\) unless the press was preheated, in which case \(T_v = T_w\).</p>
+<p>Mixing is fast compared with heat loss, so treat it as adiabatic. Energy in equals energy out, with all parts ending at a common temperature \(T_0\) (K):</p>
+$$m_w c_{p,w}(T_w - T_0) = m_c c_{p,c}(T_0 - T_\infty) + m_v c_{p,v}(T_0 - T_v)$$
+<p>Solving for \(T_0\):</p>
+$$T_0 = \frac{m_w c_{p,w} T_w + m_c c_{p,c} T_\infty + m_v c_{p,v} T_v}{C}, \qquad C = m_w c_{p,w} + m_c c_{p,c} + m_v c_{p,v}$$
+<p>\(C\) (J K⁻¹) is the total heat capacity of the batch [<code>physics.brew</code>].</p>
+<p class="phys"><b>Physical meaning.</b> A cold 350 g glass press soaks up a lot of heat. With the default numbers, 93 °C water drops to about 76 °C at once. Preheating the press removes most of that drop, which is why baristas rinse the press with hot water first.</p>
+
+<h3>2.2 Cooling during the steep</h3>
+<p>Heat leaks to the room through the walls. Lump all of that into one overall conductance \(UA\) (W K⁻¹): the product of an overall heat transfer coefficient \(U\) (W m⁻² K⁻¹) and the wall area \(A\) (m²). Treat the batch as well mixed at one temperature \(T(t)\) (K), where \(t\) (s) is time since mixing. The unsteady energy balance is accumulation = in − out:</p>
+$$C\,\frac{dT}{dt} = -\,UA\,(T - T_\infty), \qquad T(0) = T_0$$
+<p>Separate the variables and integrate:</p>
+$$\int_{T_0}^{T}\frac{dT'}{T' - T_\infty} = -\frac{UA}{C}\int_0^t dt' \quad\Longrightarrow\quad T(t) = T_\infty + (T_0 - T_\infty)\,e^{-t/\tau_{th}}, \qquad \tau_{th} = \frac{C}{UA}$$
+<p>\(\tau_{th}\) (s) is the thermal time constant. With \(C \approx 1.3\times10^{3}\) J K⁻¹ and the assumed \(UA = 1\) W K⁻¹, \(\tau_{th} \approx 22\) min, so a 4 min steep loses roughly another 9 K. The app integrates the same equation numerically, together with the material balance, because the extraction rates depend on \(T\).</p>
+<p class="phys"><b>Physical meaning.</b> The temperature excess over the room decays exponentially. After one \(\tau_{th}\) it has fallen to \(e^{-1} \approx 37\%\) of its starting value.</p>
+
+<h2 id="sec-mass">3. Material balance on extraction</h2>
+<h3>3.1 Three places a soluble molecule can be</h3>
+<p>Only a fraction \(x_E\) (dimensionless, about 0.30 for roasted coffee [M16]) of the dry coffee can dissolve at all. The total extractable mass is \(M_E = x_E m_c\) (kg). At any time \(t\) it sits in one of three pools:</p>
+<ul>
+<li>\(F(t)\) (kg): still solid, on the <b>surface</b> of the grains in broken cells, exposed directly to water;</li>
+<li>\(S(t)\) (kg): <b>inside</b> the grains, already dissolved in the liquid filling the pores, but it must diffuse out;</li>
+<li>\(m_l(t)\) (kg): <b>dissolved in the bulk liquid</b>, i.e. in your coffee.</li>
+</ul>
+<p>Coffee is neither created nor destroyed, so</p>
+$$F + S + m_l = M_E \quad\text{for all } t$$
+<p>This is the check the app reports as "mass balance closure error" [<code>physics.brew</code>]. It stays at about \(10^{-15}\), round-off level.</p>
+
+<h3>3.2 Volumes and concentrations</h3>
+<p>The coffee solid has intrinsic density \(\rho_s = 1337\) kg m⁻³, and each grain has internal porosity \(\varepsilon_p = 0.53\) (dimensionless) [C15]. The total grain volume \(V_g\) (m³) and the liquid volume inside the grains \(V_k\) (m³) are</p>
+$$V_g = \frac{m_c}{\rho_s(1 - \varepsilon_p)}, \qquad V_k = \varepsilon_p V_g$$
+<p>With water density \(\rho_w\) (kg m⁻³), the bulk liquid volume around the grains is \(V_b = m_w/\rho_w - V_k\) (m³). The two concentrations (kg m⁻³) are</p>
+$$c = \frac{m_l}{V_b} \quad\text{(bulk liquid)}, \qquad c_k = \frac{S}{V_k} \quad\text{(inside the grains)}$$
+
+<h3>3.3 Rate laws</h3>
+<p><b>Surface dissolution.</b> Exposed solid dissolves at a rate proportional to how much is left, \(F\), and to the distance from saturation. The solubility of coffee solubles is \(c_{sat} = 212.4\) kg m⁻³ [M16], and \(\tau_s\) (s) is the surface time scale:</p>
+$$\frac{dF}{dt} = -\frac{F}{\tau_s}\left(1 - \frac{c}{c_{sat}}\right)$$
+<p><b>Diffusion out of the grains.</b> Solute leaves the pores at a rate proportional to the concentration difference between inside and outside (a linear driving force, the lumped version of Fick's law). \(\tau_d\) (s) is the diffusion time scale:</p>
+$$\frac{dS}{dt} = -\frac{V_k}{\tau_d}\,(c_k - c)$$
+<p><b>Bulk liquid.</b> From conservation (3.1), whatever leaves \(F\) and \(S\) enters \(m_l\):</p>
+$$\frac{dm_l}{dt} = -\frac{dF}{dt} - \frac{dS}{dt}$$
+<p>Adding the three rate equations gives \(\frac{d}{dt}(F + S + m_l) = 0\), so the balance in 3.1 holds exactly. It is built into the equations, not hoped for.</p>
+
+<h3>3.4 How grind size and temperature set the time scales</h3>
+<p>Diffusion over a distance \(L\) (m) with diffusivity \(D_{eff}\) (m² s⁻¹) takes a time of order \(L^2/D_{eff}\). The diffusion distance scales with the grain diameter \(d\) (m), so</p>
+$$\tau_d = \tau_{d,ref}\left(\frac{d}{d_{ref}}\right)^2 \phi(T), \qquad \tau_s = \tau_{s,ref}\left(\frac{d}{d_{ref}}\right)^3 \phi(T)$$
+<p>Here \(d_{ref} = 322\ \mu\text{m}\), \(\tau_{d,ref} = 42.2\) s and \(\tau_{s,ref} = 1.18\) s are fitted values at 90 °C from [M16]. The cube on \(\tau_s\) reproduces both grinds reported there (fine \(\tau_s = 1.18\) s, coarse \(19.4\) s). It is an empirical fit, not a law. Temperature enters through the Stokes–Einstein relation \(D_{eff} \propto T/\mu\), where \(\mu\) (Pa s) is the water viscosity. Since \(\tau \propto 1/D_{eff}\):</p>
+$$\phi(T) = \frac{\mu(T)/T}{\mu(T_{ref})/T_{ref}}, \qquad T_{ref} = 363.15\ \text{K}$$
+<p>Hotter water is less viscous, so molecules diffuse faster and both time scales shrink [<code>physics.time_scales</code>].</p>
+<p><b>How much starts on the surface.</b> Treat a grain as a sphere of diameter \(d\), with broken cells of size \(m_{cell} = 30\ \mu\text{m}\) [M16] forming a shell one cell thick. The shell's volume fraction is</p>
+$$\phi_s = 1 - \left(1 - \frac{2 m_{cell}}{d}\right)^3$$
+<p>so \(F(0) = \phi_s M_E\), \(S(0) = (1 - \phi_s) M_E\) and \(m_l(0) = 0\) [<code>physics.fast_fraction</code>]. Finer grinds have more surface per volume, so more of the coffee is immediately available.</p>
+
+<h3>3.5 The best extraction you can ever get</h3>
+<p>Wait forever: \(F \to 0\) and the diffusion stops when \(c_k = c\). Far below saturation (\(c \ll c_{sat}\), true here since \(c \approx 13\) kg m⁻³), the extractables split between bulk and pore liquid in proportion to volume:</p>
+$$m_{l,\infty} = M_E\,\frac{V_b}{V_b + V_k} \quad\Longrightarrow\quad \mathrm{EY}_{\max} = x_E\,\frac{V_b}{V_b + V_k}$$
+<p>Some coffee always stays behind in the liquid trapped inside the spent grounds, so \(\mathrm{EY}\) can never reach \(x_E\). The unit test <code>test_extraction_never_exceeds_extractable_fraction</code> checks this.</p>
+<p class="phys"><b>The key trade-off.</b> A finer grind shortens \(\tau_d \propto d^2\) (faster extraction), but it also lowers the bed permeability \(k \propto d^2\) (see <a href="#sec-filter">section 7</a>), so the press gets harder to plunge. The same \(d^2\) appears in a mass transfer law and a fluid mechanics law, pulling in opposite directions.</p>
+
+<h2 id="sec-pump">4. Pump and transfer line: mechanical energy balance</h2>
+<p>The plant moves hot water from the kettle (E-101) to the press (R-101) through a pipe of inner diameter \(D\) (m) and length \(L\) (m). Take the mechanical energy balance (extended Bernoulli equation) from the kettle's free surface (1) to the press inlet (2), both open to the atmosphere, with velocity heads negligible at the large free surfaces. The head the pump must supply, \(H\) (m), is</p>
+$$H = \Delta z + h_f + h_m$$
+<p>where \(\Delta z\) (m) is the elevation gain, \(h_f\) (m) the friction loss in straight pipe, and \(h_m\) (m) the loss in fittings. With volumetric flow \(Q\) (m³ s⁻¹), mean velocity \(V = Q/(\pi D^2/4)\) (m s⁻¹) and gravity \(g = 9.81\) m s⁻²:</p>
+$$h_f = f\,\frac{L}{D}\,\frac{V^2}{2g} \quad\text{(Darcy–Weisbach)}, \qquad h_m = \Big(\sum K\Big)\frac{V^2}{2g}$$
+<p>\(\sum K\) (dimensionless) is the sum of the fitting loss coefficients (entrance, elbows, valve, exit). The Darcy friction factor \(f\) (dimensionless) depends on the Reynolds number \(Re = \rho V D/\mu\) (dimensionless) and the relative roughness \(\epsilon/D\), where \(\epsilon\) (m) is the wall roughness:</p>
+$$f = \frac{64}{Re}\ \ (Re < 2300), \qquad \frac{1}{\sqrt f} = -2\log_{10}\left(\frac{\epsilon/D}{3.7} + \frac{2.51}{Re\sqrt f}\right)\ \ (Re > 4000)$$
+<p>Colebrook is implicit in \(f\), so the code solves it with a bracketed root finder (<code>scipy.optimize.brentq</code>). In the transition region \(2300 &lt; Re &lt; 4000\) no reliable correlation exists, and the code raises an error instead of guessing [<code>physics.colebrook</code>].</p>
+<p><b>Operating point.</b> The (hypothetical) pump delivers head \(H_p(Q) = H_0\left[1 - (Q/Q_{max})^2\right]\), where \(H_0\) (m) is the shut-off head and \(Q_{max}\) (m³ s⁻¹) the flow at zero head. The system needs \(H_{sys}(Q)\) from above. The plant runs where supply meets demand:</p>
+$$H_p(Q^*) = H_{sys}(Q^*)$$
+<p>which <code>brentq</code> solves for the operating flow \(Q^*\) [<code>physics.operating_point</code>]. Narrowing the pipe or adding fittings makes the system curve steeper and moves \(Q^*\) to lower flow.</p>
+
+<h2 id="sec-npsh">5. Cavitation: net positive suction head</h2>
+<p>If the pressure at the pump inlet falls below the vapour pressure \(P_v(T)\) (Pa), the water boils locally, bubbles form and collapse, and the pump cavitates. Apply the mechanical energy balance from the kettle surface (at atmospheric pressure \(P_{atm} = 101\,325\) Pa, height \(z_s\) (m) above the pump inlet) to the pump inlet, with suction-side losses \(h_{L,s}\) (m). The net positive suction head available, \(\mathrm{NPSH}_a\) (m), is the margin of inlet pressure above vapour pressure, expressed as head:</p>
+$$\mathrm{NPSH}_a = \frac{P_{atm} - P_v(T)}{\rho g} + z_s - h_{L,s}$$
+<p>The pump needs at least \(\mathrm{NPSH}_r(Q)\) (m), from its data sheet, taken here as \(a + bQ^2\) for a hypothetical pump. The alarm trips when \(\mathrm{NPSH}_a &lt; \mathrm{NPSH}_r\) [<code>physics.npsh_available</code>].</p>
+<p class="phys"><b>Physical meaning.</b> \(P_v\) of water climbs steeply near boiling: about 70 kPa at 90 °C and 101 kPa at 100 °C (from CoolProp). The first term then collapses towards zero, which is why pumping near-boiling liquids is hard and why real plants mount pumps well below hot tanks to gain \(z_s\).</p>
+
+<h2 id="sec-stir">6. Stirring: impeller Reynolds number and power</h2>
+<p>For an impeller of diameter \(D_i\) (m) turning at \(N\) (rev s⁻¹), the velocity scale is \(N D_i\) and the length scale \(D_i\), so</p>
+$$Re_i = \frac{\rho N D_i^2}{\mu}, \qquad P = N_p\,\rho\,N^3 D_i^5$$
+<p>\(P\) (W) is the shaft power, and the power number \(N_p\) (dimensionless) is a function of \(Re_i\). The app uses the two asymptotes of the classic Rushton-turbine curve: \(N_p = 70/Re_i\) when laminar and \(N_p \approx 5\) when turbulent, joined as \(N_p = \max(70/Re_i,\,5)\). That is rough in the transition region, and the app says so [<code>physics.stirring</code>].</p>
+<p class="phys"><b>Why it matters here.</b> The extraction model assumes a well-mixed liquid. That is a fair assumption only when stirring is vigorous (turbulent). The app warns you when it is not.</p>
+
+<h2 id="sec-filter">7. Plunge filtration: Darcy's law and Kozeny–Carman</h2>
+<p><b>Darcy's law.</b> Slow flow through a porous bed of thickness \(L_c\) (m) and permeability \(k\) (m²) needs a pressure drop \(\Delta P\) (Pa) proportional to the superficial velocity \(u\) (m s⁻¹), which is the flow rate divided by the full cross-section:</p>
+$$\Delta P_{cake} = \frac{\mu\,u\,L_c}{k}$$
+<p><b>Kozeny–Carman.</b> Model the pores as many small tubes and apply Hagen–Poiseuille flow in each. The tube size is set by the hydraulic radius (pore volume / wetted surface), which for spheres of diameter \(d\) in a bed of porosity \(\varepsilon\) (dimensionless) is \(\frac{\varepsilon d}{6(1-\varepsilon)}\). The result, with the empirical constant 180 that accounts for tortuous paths, is</p>
+$$k = \frac{d_{32}^2\,\varepsilon^3}{180\,(1 - \varepsilon)^2}$$
+<p>Because the derivation uses surface area, the right diameter is the <b>Sauter mean</b> \(d_{32}\) (m), the diameter of a sphere with the same volume-to-surface ratio as the whole grind. For a grind of main size \(d\) plus a mass fraction \(w_f\) (dimensionless) of fines of size \(d_f\) (m):</p>
+$$\frac{1}{d_{32}} = \frac{w_f}{d_f} + \frac{1 - w_f}{d}$$
+<p>A few percent of fines dominate \(d_{32}\) because they carry most of the surface area [<code>physics.sauter_diameter</code>].</p>
+<p><b>Mesh in series.</b> The filter mesh adds a resistance \(R_m\) (m⁻¹), with \(\Delta P_{mesh} = \mu u R_m\). Resistances in series add, just like electrical ones. For a press of cross-section \(A_p\) (m²), the plunger force \(F_p\) (N) is</p>
+$$F_p = A_p\,\mu\,u\left(\frac{L_c}{k} + R_m\right), \qquad u = \frac{V_{liq}}{A_p\,t_p}, \qquad L_c = \frac{m_c}{\rho_{bulk} A_p}$$
+<p>Here \(V_{liq}\) (m³) is the liquid pushed through, \(t_p\) (s) the plunge time, and \(\rho_{bulk}\) (kg m⁻³) the bulk density of the grounds cake [<code>physics.plunge</code>].</p>
+<p class="phys"><b>Honest limitation.</b> [C15] measured coffee beds and found Kozeny–Carman with the constant 180 can be wrong by a factor of 1.3 to 6. Here \(R_m\), \(\varepsilon\) and \(w_f\) are assumed values. Treat the force as an estimate, and calibrate it by plunging a real press standing on a kitchen scale.</p>
+
+<h2 id="sec-stokes">8. Settling of fines: Stokes' law</h2>
+<p>A small sphere of diameter \(d_p\) (m) and density \(\rho_p\) (kg m⁻³) falls through liquid of density \(\rho\) and viscosity \(\mu\). At terminal velocity \(v_t\) (m s⁻¹) the forces balance: weight minus buoyancy equals drag. At low Reynolds number the drag on a sphere is \(3\pi\mu d_p v_t\) (Stokes, 1851):</p>
+$$(\rho_p - \rho)\,g\,\frac{\pi d_p^3}{6} = 3\pi\mu d_p v_t \quad\Longrightarrow\quad v_t = \frac{(\rho_p - \rho)\,g\,d_p^2}{18\,\mu}$$
+<p>A coffee particle is porous and full of water, so its effective density is \(\rho_p = \rho_s(1 - \varepsilon_p) + \rho\,\varepsilon_p \approx 1.15\times10^3\) kg m⁻³. The time to settle through a cup of depth \(h\) (m) is \(h/v_t\).</p>
+<p><b>Validity check.</b> Stokes drag holds only when the particle Reynolds number \(Re_p = \rho v_t d_p/\mu\) is small. The code flags \(Re_p &gt; 0.1\) as invalid instead of reporting a wrong number [<code>physics.settling</code>].</p>
+<p class="phys"><b>Physical meaning.</b> \(v_t \propto d_p^2\). Within the Stokes range, a particle ten times smaller settles a hundred times slower. A 30 µm fine takes several minutes to fall through a cup, which is why the last sip of French press coffee is gritty unless you wait a few minutes.</p>
+
+<h2 id="sec-torricelli">9. Draining the carafe: Bernoulli and a mass balance</h2>
+<p>A carafe of cross-section \(A_t\) (m²) holds liquid to height \(h(t)\) (m) and drains through a spout of area \(a\) (m²). Bernoulli from the free surface to the spout jet (both at atmospheric pressure, surface velocity negligible) gives the ideal jet speed \(\sqrt{2gh}\). Real jets contract and lose a little energy, which is captured by the discharge coefficient \(C_d\) (dimensionless, about 0.6 for a sharp edge). The mass balance on the carafe, with constant density, is</p>
+$$A_t\,\frac{dh}{dt} = -\,C_d\,a\,\sqrt{2gh}$$
+<p>Separating and integrating from \(h_0\) (m) down to 0:</p>
+$$\int_{h_0}^{0}\frac{dh}{\sqrt h} = -\frac{C_d a\sqrt{2g}}{A_t}\int_0^{t_{d}} dt \quad\Longrightarrow\quad t_{d} = \frac{A_t}{C_d\,a}\sqrt{\frac{2h_0}{g}}$$
+<p>\(t_d\) (s) is the drain time [<code>physics.drain_time</code>]. Doubling the spout diameter cuts the drain time by four, because \(a \propto (\text{diameter})^2\). Quadrupling the starting height only doubles it.</p>
+
+<h2 id="sec-ai">10. The AI operator: Gaussian process models</h2>
+<p><b>The task.</b> Choose setpoints \(\mathbf{x} = (d, T_w, t, R)\) (grind, kettle temperature, steep time, and \(R = m_w/m_c\), the water-to-coffee ratio) so the cup lands in the SCA box, using as few batches as possible. Every batch costs coffee and time, so the AI must learn from very little data.</p>
+<p><b>A Gaussian process (GP)</b> is a way to fit a smooth function to a few noisy points and also say how unsure it is everywhere else. Say \(n\) batches have been brewed at setpoints \(\mathbf{x}_1, \dots, \mathbf{x}_n\) (scaled to the unit cube), with measured strengths collected in a vector \(\mathbf{y}\). A kernel \(k(\mathbf{x}, \mathbf{x}')\) states how similar the outcomes at two recipes should be. The app uses the Matérn kernel with smoothness \(\nu = 5/2\), \(r = \lVert(\mathbf{x} - \mathbf{x}')/\boldsymbol{\ell}\rVert\), length scales \(\boldsymbol{\ell}\) and signal variance \(\sigma_f^2\):</p>
+$$k(\mathbf{x}, \mathbf{x}') = \sigma_f^2\left(1 + \sqrt5\,r + \tfrac{5}{3}r^2\right)e^{-\sqrt5\,r}$$
+<p>Collect \(K_{ij} = k(\mathbf{x}_i, \mathbf{x}_j)\) and \(\mathbf{k}_* = [k(\mathbf{x}_*, \mathbf{x}_i)]_i\) for a new recipe \(\mathbf{x}_*\), and let \(\sigma_n^2\) be the measurement-noise variance. The GP then predicts a mean \(\mu_*\) and a standard deviation \(\sigma_*\):</p>
+$$\mu_* = \mathbf{k}_*^{\top}(K + \sigma_n^2 I)^{-1}\mathbf{y}, \qquad \sigma_*^2 = k(\mathbf{x}_*, \mathbf{x}_*) - \mathbf{k}_*^{\top}(K + \sigma_n^2 I)^{-1}\mathbf{k}_*$$
+<p>The hyperparameters \(\sigma_f, \boldsymbol\ell, \sigma_n\) are chosen by maximizing the marginal likelihood (scikit-learn's <code>GaussianProcessRegressor</code> does this). The app fits one GP to \(\mathrm{TDS}\) and one to \(\mathrm{EY}\).</p>
+<p><b>Choosing the next batch.</b> Treat each prediction as a normal distribution. Writing \(\Phi\) for the standard normal cumulative distribution function, the probability that a recipe lands in the box is</p>
+$$p(\mathbf{x}_*) = \left[\Phi\!\left(\frac{0.0135 - \mu_*^{T}}{\sigma_*^{T}}\right) - \Phi\!\left(\frac{0.0115 - \mu_*^{T}}{\sigma_*^{T}}\right)\right]\left[\Phi\!\left(\frac{0.22 - \mu_*^{E}}{\sigma_*^{E}}\right) - \Phi\!\left(\frac{0.18 - \mu_*^{E}}{\sigma_*^{E}}\right)\right]$$
+<p>Superscripts \(T\) and \(E\) mark the TDS and EY models. This assumes the two predictions are independent, which is a simplification. The AI scores 3000 random candidate recipes and brews the one with the largest \(p\) [<code>ai.suggest</code>]. The first three batches are random, because a GP needs some data first.</p>
+<p><b>Is it any good? An earned baseline.</b> Over 20 independent runs with at most 12 batches and the same noisy meter, the AI reached the box in 20 of 20 runs (median 7 batches). One-factor-at-a-time, the classic lab approach, managed 6 of 20, and random recipes 8 of 20 [<code>scripts/benchmark.py</code>]. These are best-found results for the strategies and settings tried, not a proof of optimality.</p>
+
+<h2 id="sec-assume">11. Assumptions and limits (read before defending)</h2>
+<ul>
+<li>The press is <b>well mixed</b> and every grain has one size \(d\). Real grinds have a size distribution.</li>
+<li>Time scales are anchored to one paper [M16] measured at 90 °C. The \(d^2\) and \(d^3\) scalings and the Stokes–Einstein temperature factor are model choices.</li>
+<li><b>Assumed, not measured:</b> \(UA = 1\) W K⁻¹, \(c_{p,c} = 1700\) J kg⁻¹ K⁻¹, mesh resistance \(R_m\), cake porosity \(\varepsilon = 0.40\), fines fraction \(w_f\), TDS meter noise (standard deviation 0.0003), \(C_d = 0.6\), and the pump and \(\mathrm{NPSH}_r\) curves (a hypothetical pump; a real French press has no pump).</li>
+<li>Kozeny–Carman can be off several-fold for coffee [C15].</li>
+<li>Everything the app calls "measured" is simulated with added noise. Real-brew validation is the way to replace assumptions with data.</li>
+</ul>
+
+<h2 id="sec-symbols">12. Symbol table</h2>
+<table>
+<thead><tr><th>Symbol</th><th>Meaning</th><th>SI unit</th></tr></thead>
+<tbody>
+<tr><td>\(A_p, A_t\)</td><td>press cross-section, carafe cross-section</td><td>m²</td></tr>
+<tr><td>\(a\)</td><td>spout area</td><td>m²</td></tr>
+<tr><td>\(C\)</td><td>total heat capacity of the batch</td><td>J K⁻¹</td></tr>
+<tr><td>\(C_d\)</td><td>discharge coefficient</td><td>–</td></tr>
+<tr><td>\(c, c_k, c_{sat}\)</td><td>bulk, in-grain, and saturation concentration</td><td>kg m⁻³</td></tr>
+<tr><td>\(c_{p,w}, c_{p,c}, c_{p,v}\)</td><td>specific heat of water, grounds, vessel</td><td>J kg⁻¹ K⁻¹</td></tr>
+<tr><td>\(D, D_i\)</td><td>pipe inner diameter, impeller diameter</td><td>m</td></tr>
+<tr><td>\(D_{eff}\)</td><td>effective diffusivity</td><td>m² s⁻¹</td></tr>
+<tr><td>\(d, d_{32}, d_f, d_p\)</td><td>grind size, Sauter mean, fines size, settling particle size</td><td>m</td></tr>
+<tr><td>\(\mathrm{EY}\)</td><td>extraction yield</td><td>–</td></tr>
+<tr><td>\(F, S, m_l\)</td><td>solubles on surface, inside grains, dissolved</td><td>kg</td></tr>
+<tr><td>\(F_p\)</td><td>plunger force</td><td>N</td></tr>
+<tr><td>\(f\)</td><td>Darcy friction factor</td><td>–</td></tr>
+<tr><td>\(g\)</td><td>gravitational acceleration, 9.81</td><td>m s⁻²</td></tr>
+<tr><td>\(H, H_p, H_0\)</td><td>system head, pump head, shut-off head</td><td>m</td></tr>
+<tr><td>\(h_f, h_m, h_{L,s}\)</td><td>friction, fitting, and suction-side head loss</td><td>m</td></tr>
+<tr><td>\(h, h_0\)</td><td>liquid height, initial height</td><td>m</td></tr>
+<tr><td>\(K, \sum K\)</td><td>fitting loss coefficient(s)</td><td>–</td></tr>
+<tr><td>\(k\)</td><td>permeability</td><td>m²</td></tr>
+<tr><td>\(L, L_c\)</td><td>pipe length, cake thickness</td><td>m</td></tr>
+<tr><td>\(M_E\)</td><td>extractable mass, \(x_E m_c\)</td><td>kg</td></tr>
+<tr><td>\(m_c, m_w, m_v, m_{bev}\)</td><td>mass of coffee, water, vessel, beverage</td><td>kg</td></tr>
+<tr><td>\(m_{cell}\)</td><td>coffee cell size</td><td>m</td></tr>
+<tr><td>\(N, N_p\)</td><td>impeller speed, power number</td><td>s⁻¹, –</td></tr>
+<tr><td>\(\mathrm{NPSH}_a, \mathrm{NPSH}_r\)</td><td>net positive suction head available, required</td><td>m</td></tr>
+<tr><td>\(P, P_{atm}, P_v\)</td><td>stirring power, atmospheric pressure, vapour pressure</td><td>W, Pa, Pa</td></tr>
+<tr><td>\(Q, Q^*, Q_{max}\)</td><td>flow rate, operating flow, pump flow at zero head</td><td>m³ s⁻¹</td></tr>
+<tr><td>\(R\)</td><td>water-to-coffee mass ratio</td><td>–</td></tr>
+<tr><td>\(R_m\)</td><td>mesh resistance</td><td>m⁻¹</td></tr>
+<tr><td>\(Re, Re_i, Re_p\)</td><td>pipe, impeller, particle Reynolds number</td><td>–</td></tr>
+<tr><td>\(T, T_0, T_w, T_v, T_\infty\)</td><td>brew, after-mixing, kettle, vessel, room temperature</td><td>K</td></tr>
+<tr><td>\(\mathrm{TDS}\)</td><td>total dissolved solids (strength)</td><td>–</td></tr>
+<tr><td>\(t, t_p, t_d\)</td><td>time, plunge time, drain time</td><td>s</td></tr>
+<tr><td>\(UA\)</td><td>overall heat-loss conductance</td><td>W K⁻¹</td></tr>
+<tr><td>\(u, V, v_t\)</td><td>superficial velocity, pipe mean velocity, terminal velocity</td><td>m s⁻¹</td></tr>
+<tr><td>\(V_g, V_k, V_b, V_{liq}\)</td><td>grain volume, in-grain liquid, bulk liquid, liquid plunged</td><td>m³</td></tr>
+<tr><td>\(w_f\)</td><td>fines mass fraction</td><td>–</td></tr>
+<tr><td>\(x_E\)</td><td>extractable mass fraction of coffee</td><td>–</td></tr>
+<tr><td>\(z_s, \Delta z\)</td><td>suction height, elevation gain</td><td>m</td></tr>
+<tr><td>\(\varepsilon, \varepsilon_p, \epsilon\)</td><td>bed porosity, grain porosity, pipe roughness</td><td>–, –, m</td></tr>
+<tr><td>\(\mu, \rho, \rho_s, \rho_p, \rho_{bulk}\)</td><td>viscosity; densities of water, solid, wet particle, cake</td><td>Pa s; kg m⁻³</td></tr>
+<tr><td>\(\tau_s, \tau_d, \tau_{th}\)</td><td>surface, diffusion, thermal time scale</td><td>s</td></tr>
+<tr><td>\(\phi(T), \phi_s\)</td><td>temperature factor, surface fraction</td><td>–</td></tr>
+<tr><td>\(\mu_*, \sigma_*, k(\cdot,\cdot), \boldsymbol\ell, \sigma_f, \sigma_n, \Phi\)</td><td>GP mean, std. deviation, kernel, length scales, signal and noise std., normal CDF</td><td>as the predicted quantity; – for \(\boldsymbol\ell\), \(\Phi\)</td></tr>
+</tbody>
+</table>
+
+<h2 id="sec-sources">13. Sources</h2>
+<ul>
+<li>[M16] K. M. Moroney, W. T. Lee, S. B. G. O'Brien, F. Suijver, J. Marra, "Coffee extraction kinetics in a well mixed system", <em>Journal of Mathematics in Industry</em> 7 (2016). Time scales, extractable fraction, solubility, cell size.</li>
+<li>[C15] B. R. Corrochano, J. R. Melrose, A. C. Bentley, P. J. Fryer, S. Bakalis, "A new methodology to estimate the steady-state permeability of roast and ground coffee in packed beds", <em>Journal of Food Engineering</em> 150 (2015). Solid density, grain porosity, bulk density, Kozeny–Carman accuracy.</li>
+<li>SCAA Golden Cup brewing control chart. Ideal strength 1.15–1.35 % and extraction 18–22 %.</li>
+<li>I. H. Bell et al., CoolProp (IAPWS-95 water properties).</li>
+<li>Standard fluid mechanics: Darcy–Weisbach, Colebrook (1939), Stokes (1851), Torricelli, Kozeny–Carman, Rushton et al. (1950) power curves.</li>
+</ul>

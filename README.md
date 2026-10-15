@@ -36,3 +36,13 @@ python scripts/benchmark.py   # re-run the AI vs. baseline benchmark (a few minu
 - `plant/ai.py` contains the AI operator and the baselines (one factor at a time, and random).
 - `plant/diagram.py` draws the SVG process flow diagram.
 - `docs/derivations.html` derives every equation, with every symbol defined.
+
+## Rebuild the math documents
+
+`docs/*.html` are rendered from `docs/*.src.html` with KaTeX on the server, so they open offline with no CDN:
+
+```bash
+npm install katex@0.16.22
+node docs/render_katex.js docs/derivations.src.html docs/derivations.html
+node docs/render_katex.js docs/study_guide.src.html docs/study_guide.html
+```

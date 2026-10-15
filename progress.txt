@@ -8,3 +8,4 @@ AI Barista Plant - progress log (resume point for a fresh session)
 - app.py done: 6 views (Plant P&ID, Trends, Fluid units, Lab notebook, AI operator head-to-head, Engineering notes). Views use segmented_control (st.tabs reset on rerun).
 - 17 tests pass (14 physics + 3 AppTest). Benchmark saved: AI 20/20 (median 7), OFAT 6/20 (median 10), random 8/20 (median 9).
 - Next: docs/derivations.html (KaTeX server-side), study guide, push once alex creates repo, deploy on Streamlit Cloud.
+- docs: derivations.html (280 KaTeX expressions, strict parse) and study_guide.html (33 Q&A), screenshot-checked.
