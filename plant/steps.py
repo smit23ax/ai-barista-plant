@@ -94,6 +94,13 @@ SYMBOLS = {
     r"t_p": ("plunge time", "s"),
     r"V_l": ("volume of liquid pushed through the cake", "m^3"),
     # ---- T-101: Stokes settling ----
+    # ---- channeling ----
+    r"\varepsilon_c": ("porosity of a looser channel region in the cake", "1"),
+    r"k_c": ("permeability of the channel region", "m^2"),
+    r"u_c": ("superficial velocity through the channel region", "m/s"),
+    r"a_c": ("fraction of the press area taken by the channel", "1"),
+    r"\chi_c": ("share of the total flow that goes through the channel", "1"),
+    r"\Delta P_{ch}": ("pressure drop across a cake that has a channel, for the same total flow", "Pa"),
     r"v_t": ("terminal settling velocity of a particle", "m/s"),
     r"u_p": ("particle velocity at any instant", "m/s"),
     r"d_p": ("particle (fine) diameter", "m"),
@@ -567,6 +574,80 @@ FILTER = {
 }
 
 # =====================================================================================================
+CHANNELING = {
+    "title": "Channeling: when the bed stops being uniform",
+    "tag": "F-101",
+    "sign": SIGN_FLOW,
+    "dof": {
+        "unknowns": ["velocity in the channel u_c", "velocity in the rest of the bed u", "pressure drop Delta P_ch"],
+        "equations": ["Darcy's law in the channel", "Darcy's law in the rest of the bed",
+                      "total flow = plunge flow (a_c u_c + (1 - a_c) u = plunge speed)"],
+        "specified": ["bed porosity epsilon", "channel porosity epsilon_c", "channel area fraction a_c",
+                      "grain size, liquid properties and plunge speed (same as the Ergun unit)"],
+        "result": "3 unknowns − 3 equations = 0.",
+    },
+    "steps": [
+        {"title": "Two paths, one pressure drop",
+         "write": r"\Delta P_{ch} = \text{same across the channel and the rest of the bed}",
+         "say": "Ergun assumes every part of the bed is the same. Real beds have a looser patch, a crack or a gap at "
+                "the wall. That patch and the rest of the bed sit side by side between the same two faces, so they "
+                "feel the same pressure drop, like two pipes in parallel."},
+        {"title": "Darcy in each path",
+         "write": r"u_c = \frac{k_c}{\mu} \frac{\Delta P_{ch}}{L_c}, \quad u = \frac{k}{\mu} \frac{\Delta P_{ch}}{L_c} \;\Rightarrow\; \frac{u_c}{u} = \frac{k_c}{k}",
+         "say": "Coffee beds are in the viscous regime, so Darcy's law holds in each path. Same pressure drop, same "
+                "liquid, same thickness: the speeds are in the same ratio as the permeabilities."},
+        {"title": "Ergun's porosity lever",
+         "write": r"\frac{k_c}{k} = \frac{\varepsilon_c^3\,(1-\varepsilon)^2}{\varepsilon^3\,(1-\varepsilon_c)^2}",
+         "say": "With the same grains, permeability goes as epsilon cubed over one minus epsilon squared. That is "
+                "very steep. A patch at 0.45 porosity instead of 0.40 lets 1.7 times as much liquid through per "
+                "square metre, and a patch at 0.50 lets 2.8 times as much through."},
+        {"title": "How much of the flow the channel takes",
+         "write": r"\chi_c = \frac{a_c\, k_c}{a_c\, k_c + (1-a_c)\, k}",
+         "say": "Weight each path by its area. If a looser patch at 0.50 covers 10 percent of the press, it carries "
+                "24 percent of the liquid. That liquid spends less time against the grains it passes, and the "
+                "grains elsewhere see less fresh liquid."},
+        {"title": "Why it can run away",
+         "write": r"\varepsilon_c \uparrow \;\Rightarrow\; k_c \uparrow \;\Rightarrow\; u_c \uparrow \;\Rightarrow\; \varepsilon_c \uparrow",
+         "say": "This is my reasoning, not a measurement. More flow through the patch washes out more solubles and "
+                "can carry fines away, so the patch gets looser still. That positive feedback is why a channel, "
+                "once it starts, tends to grow instead of evening out."},
+        {"title": "Evidence from real espresso (Cameron 2020)",
+         "write": r"\mathrm{EY}_{max} = 23.0\,\% \text{ at GS } 1.7, \quad 21.3\,\% \text{ at GS } 1.1",
+         "say": "A uniform-bed model says finer always extracts more. Cameron measured the opposite below grind "
+                "setting 1.7: extraction peaked at 23.0 percent, then fell to 21.3 percent at the finest setting, "
+                "and the shot-to-shot spread grew from 0.05 to 0.42 percentage points. They call it partially "
+                "clogged flow: too many fines make the bed uneven, so part of it gets little flow. At 9 bar their "
+                "finest grinds clogged completely."},
+        {"title": "What it means for the French press",
+         "write": r"\frac{\Delta P_{ch}}{\Delta P} = \frac{1}{a_c\, k_c / k + 1 - a_c}",
+         "say": "In a press, most extraction happens during the 4 minute steep, while the grounds float freely, so "
+                "channeling during a 20 second plunge barely changes the cup. It shows up in the force instead. The "
+                "same 10 percent patch at 0.50 cuts the pressure drop, and so the cake force, by about 15 percent. "
+                "A plunge that suddenly goes easy means the liquid found a shortcut. My model assumes a uniform cake, "
+                "so it gives the force without channels."},
+    ],
+    "checks": [
+        "If epsilon_c = epsilon, k_c/k = 1, the channel takes its area share of the flow and the pressure drop is unchanged.",
+        "If a_c goes to 0, chi_c goes to 0: a tiny crack can't carry the flow on its own.",
+        "chi_c is always between a_c and 1, and the pressure drop with a channel is never higher than without one.",
+        "The code checks these numbers against plant/packed_bed.py (channel_split) in the test suite.",
+    ],
+    "questions": [
+        ("What is channeling?",
+         "Liquid taking an easier path through a looser part of the bed, so the flow and the extraction are uneven."),
+        ("Why is espresso more sensitive than a French press?",
+         "Espresso extracts while the water flows through the bed, so uneven flow means uneven extraction. A press "
+         "extracts during the steep, and the plunge only filters."),
+        ("Does your model include channeling?",
+         "No. The Ergun and extraction models assume a uniform bed. The two-path calculation shows how big the "
+         "effect could be, and Cameron's data show where the uniform assumption fails."),
+        ("How would you reduce channeling?",
+         "A grinder with fewer fines, an even bed, and pushing slowly and steadily. Cameron found a coarser grind "
+         "with less coffee gave more reproducible shots."),
+    ],
+}
+
+# =====================================================================================================
 STOKES = {
     "title": "T-101 cup: fines settling (Stokes' law)",
     "tag": "T-101",
@@ -734,6 +815,7 @@ UNITS = {
     "Extraction balance (R-101)": EXTRACTION,
     "Energy balance (R-101)": COOLING,
     "Plunge filtration (F-101)": FILTER,
+    "Channeling (F-101)": CHANNELING,
     "Stokes settling (T-101)": STOKES,
     "AI operator": AI,
 }

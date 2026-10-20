@@ -124,7 +124,7 @@ st.markdown(header("Fluid mechanics · Flow through a packed bed", "AI Barista P
                    "sets the flow, a material balance links it to the cup, and an AI operator picks the recipe."),
             unsafe_allow_html=True)
 
-VIEWS = ["Plant", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
+VIEWS = ["Plant", "Theory", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
 view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_visibility="collapsed") or "Plant"
 
 # ---- Plant
@@ -393,6 +393,66 @@ if view == "AI operator":
             rows.append({"strategy": label, "reached ideal cup": f"{len(hits)} / {bench['seeds']}",
                          "median batches (when reached)": float(np.median(hits)) if hits else None})
         st.table(pd.DataFrame(rows))
+
+# ---- Theory: the whole system on one page, from the same Write / Say steps the Presenter uses
+THEORY = [("Plant overview & DOF", "What the plant does and what the operator can choose."),
+          ("Dimensional analysis (packed bed)", "Core. Which groups the pressure drop can depend on."),
+          ("Ergun equation (F-101)", "Core. The shape of the curve, and why grind size and fines set the flow."),
+          ("Plunge filtration (F-101)", "Core. Kozeny–Carman from pores as tiny pipes, and the plunger force."),
+          ("Channeling (F-101)", "Support. What happens when the bed is not uniform."),
+          ("Extraction balance (R-101)", "Support. How grind size reaches the cup: the material balance."),
+          ("Energy balance (R-101)", "Support. The brew temperature that sets viscosity and diffusion."),
+          ("Stokes settling (T-101)", "Support. Why fines make the last sip gritty."),
+          ("AI operator", "Finishing touch. Choosing a recipe from noisy measurements.")]
+
+
+def unit_symbols_table(unit):
+    pretty = lambda u: "– (dimensionless)" if u == "1" else u.replace("^2", "²").replace("^3", "³").replace("*", "·")
+    rows = [f"| ${sym}$ | {presenter_steps.SYMBOLS[sym][0]} | {pretty(presenter_steps.SYMBOLS[sym][1])} |"
+            for sym in standards.symbols_used(unit)]
+    return "| Symbol | Meaning | SI unit |\n|---|---|---|\n" + "\n".join(rows)
+
+
+if view == "Theory":
+    st.markdown(label("Theory · the whole system"), unsafe_allow_html=True)
+    st.markdown("#### From a list of variables to the cup")
+    st.markdown(
+        "The French press cake is a **packed bed**. Dimensional analysis says which groups the pressure drop can depend on, "
+        "the **Ergun equation** gives the shape, and grind size, through the fines, sets how hard the bed is to push. "
+        "Channeling is where that uniform-bed picture breaks. A **material balance** links grind size to the cup, an "
+        "energy balance sets the temperature, Stokes' law explains the gritty last sip, and the **AI operator** uses the "
+        "whole model to choose a recipe. Every equation below uses the standard recipe (800 µm grind, 93 °C kettle, "
+        "4 min, 15 g in 250 g) and the same numbers as the Presenter, the derivations and the board guide.")
+    st.caption("Each step: the blue box is what to write on the board, and Say is what to say. Each section ends with every symbol with its SI unit, and the physical checks. "
+               "The Presenter view has the same steps one at a time, plus a Grill-me quiz.")
+    for n, (name, role) in enumerate(THEORY, 1):
+        unit = presenter_steps.UNITS[name]
+        with st.expander(f"**{n}. {unit['title']}**", expanded=n in (2, 3)):
+            st.markdown(f"*{role}*  \n**Sign convention:** {unit['sign']}")
+            for i, step in enumerate(unit["steps"], 1):
+                st.markdown(f"##### {i}. {step['title']}")
+                st.latex(step["write"])
+                st.markdown(f"**Say:** {step['say']}")
+            if name == "Channeling (F-101)":
+                st.markdown("##### Try it: a looser patch in a 0.40 cake")
+                c1, c2 = st.columns(2)
+                eps_c = c1.slider("Patch porosity ε_c (-)", 0.40, 0.60, 0.50, 0.01, key="th_epsc")
+                a_c = c2.slider("Patch share of the press area a_c (-)", 0.01, 0.50, 0.10, 0.01, key="th_ac")
+                ch = pb.channel_split(0.40, eps_c, a_c)
+                m = st.columns(3)
+                m[0].metric("Permeability ratio, patch / bed", f"{ch['k_ratio']:.2f}")
+                m[1].metric("Share of flow through the patch", f"{100 * ch['flow_share']:.0f} %")
+                m[2].metric("Cake force change", f"{100 * (ch['dp_ratio'] - 1):+.0f} %")
+            st.markdown("##### Symbols")
+            st.markdown(unit_symbols_table(unit))
+            st.markdown("##### Physical checks")
+            st.markdown("\n".join(f"- {c}" for c in unit["checks"]))
+    st.markdown("#### Sources")
+    st.markdown("- Ergun (1952), *Fluid flow through packed columns*, Chem. Eng. Prog. 48: the Ergun equation.\n"
+                "- Corrochano et al. (2015), J. Food Eng. 150: coffee bed permeability, sphericity 0.75, porosities.\n"
+                "- Moroney et al. (2016), J. Math. Industry 7: two-stage extraction model and time scales.\n"
+                "- Cameron et al. (2020), Matter 2: espresso grind distributions and the partially clogged flow regime.\n"
+                "- Uman et al. (2016), Sci. Rep. 6: fines in real grind distributions.")
 
 # ---- Presenter: Write / Say teleprompter with a Grill-me quiz
 if view == "Presenter":

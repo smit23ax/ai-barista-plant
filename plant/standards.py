@@ -16,7 +16,7 @@ from plant import physics, steps
 
 UREG = pint.UnitRegistry()
 # Formatting commands that are not symbols.
-NON_SYMBOLS = [r"\frac", r"\Rightarrow", r"\rightarrow", r"\log_{10}", r"\times", r"\pm", r"\!", r"\left", r"\right",
+NON_SYMBOLS = [r"\frac", r"\Rightarrow", r"\uparrow", r"\rightarrow", r"\log_{10}", r"\times", r"\pm", r"\!", r"\left", r"\right",
                r"\cdot", r"\sum", r"\exp", r"\ln", r"\sqrt", r"\;", r"\,", r"\quad", r"\int", r"\approx",
                r"\propto", r"\max"]
 
@@ -106,3 +106,17 @@ def run_checks():
         ("Ergun's f_p and Re_b are dimensionless", ergun_groups_dimensionless(), "checked with pint"),
         ("No silent extrapolation", extrapolation_guards_ok(), "out-of-range water and grind raise errors"),
     ]
+
+
+def symbols_used(unit):
+    """SYMBOLS entries that appear in a unit's Write lines, in order of first appearance (longest match first,
+    so d_{32} is not also counted as d)."""
+    found = {}
+    for st in unit["steps"]:
+        s = re.sub(r"\\text\{[^}]*\}", " ", st["write"])
+        for sym in sorted(steps.SYMBOLS, key=len, reverse=True):
+            m = re.search(_symbol_pattern(sym), s)
+            if m:
+                found.setdefault(sym, (len(found), m.start()))
+                s = re.sub(_symbol_pattern(sym), " ", s)
+    return sorted(found, key=found.get)

@@ -110,3 +110,14 @@ def psd_summary(grind_setting):
 def model_fines_surface_share(d, fines_fraction, d_fine=physics.CELL_SIZE):
     """Share of the surface carried by fines in the model's two-size grind (-): (w/d_f) / (w/d_f + (1-w)/d)."""
     return (fines_fraction / d_fine) / (fines_fraction / d_fine + (1 - fines_fraction) / d)
+
+
+def channel_split(eps, eps_c, area_fraction):
+    """Two paths in parallel across the same cake: a looser channel (porosity eps_c) over a fraction a_c of the
+    press area, and the normal bed (eps) over the rest. Same grain size, liquid and pressure drop in both, so
+    Darcy gives u_c / u = k_c / k. Returns the permeability ratio k_c/k (-), the channel's share of the total
+    flow chi_c (-), and the pressure drop for the same total flow relative to a uniform bed (-).
+        k ~ eps^3 / (1 - eps)^2,  chi_c = a_c k_c / (a_c k_c + (1 - a_c) k),  dP_ch / dP = 1 / (a_c k_c/k + 1 - a_c)"""
+    r = (eps_c**3 / (1 - eps_c) ** 2) / (eps**3 / (1 - eps) ** 2)
+    total = area_fraction * r + 1 - area_fraction
+    return {"k_ratio": r, "flow_share": area_fraction * r / total, "dp_ratio": 1 / total}

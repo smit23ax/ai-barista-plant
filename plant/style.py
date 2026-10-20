@@ -86,7 +86,9 @@ h5 {{ font-weight: 600 !important; }}
 [data-testid="stCaptionContainer"] {{ color: var(--muted); }}
 
 /* equations: light blue-gray box like a worked-example page */
-.katex-display {{ background: {CODE_BG}; border: 1px solid var(--border); border-radius: 12px; padding: 18px 14px; margin: 8px 0 !important; }}
+.katex-display {{ background: {CODE_BG}; border: 1px solid var(--border); border-radius: 12px; padding: 18px 14px; margin: 8px 0 !important;
+  overflow-x: auto; overflow-y: hidden; max-width: 100%; }}
+@media (max-width: 640px) {{ .katex-display {{ padding: 14px 8px; }} .katex-display > .katex {{ font-size: 0.92em; }} }}
 
 /* sidebar */
 [data-testid="stSidebar"] {{ background: #ffffff; border-right: 1px solid var(--border); }}

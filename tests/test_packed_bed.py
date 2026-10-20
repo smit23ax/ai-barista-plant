@@ -79,3 +79,18 @@ def test_cameron_fig4_and_psd():
 def test_model_fines_surface_share():
     assert round(pb.model_fines_surface_share(800e-6, 0.15), 2) == 0.82
     assert pb.model_fines_surface_share(800e-6, 0.0) == 0.0
+
+
+def test_channel_split_numbers_quoted_in_the_channeling_unit():
+    assert round(pb.channel_split(0.40, 0.45, 0.1)["k_ratio"], 1) == 1.7
+    c = pb.channel_split(0.40, 0.50, 0.1)
+    assert round(c["k_ratio"], 1) == 2.8 and round(100 * c["flow_share"]) == 24 and round(100 * (1 - c["dp_ratio"])) == 15
+    same = pb.channel_split(0.40, 0.40, 0.3)
+    assert abs(same["flow_share"] - 0.3) < 1e-12 and abs(same["dp_ratio"] - 1) < 1e-12
+
+
+def test_cameron_numbers_quoted_in_the_channeling_unit():
+    c = pb.C20
+    i = c["EY_pct"].index(max(c["EY_pct"]))
+    assert c["grind_setting"][i] == 1.7 and round(c["EY_pct"][i], 1) == 23.0 and round(c["EY_pct"][0], 1) == 21.3
+    assert c["EY_sd_pct"][0] == 0.42 and c["EY_sd_pct"][-1] == 0.05
