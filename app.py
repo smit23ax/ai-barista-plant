@@ -17,7 +17,7 @@ from plant import calibration as cal
 from plant import standards
 from plant import packed_bed as pb
 from plotly.subplots import make_subplots
-from plant.style import CHART_CONFIG, COLORS, CSS, card, header, label, pfd
+from plant.style import CHART_CONFIG, COLORS, CSS, INK, MUTED, card, goal, header, label, log_axis, pfd, top_legend
 
 st.set_page_config(page_title="AI Barista Plant", page_icon="☕", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
@@ -123,6 +123,10 @@ st.markdown(header("Fluid mechanics · Flow through a packed bed", "AI Barista P
                    "A French press is a packed bed. Dimensional analysis and the Ergun equation show how grind size "
                    "sets the flow, a material balance links it to the cup, and an AI operator picks the recipe."),
             unsafe_allow_html=True)
+st.markdown(goal("Show how coffee grind size controls flow through a packed bed, using dimensional analysis and the "
+                 "Ergun equation, and what that does to the cup. Every result is checked against measured coffee data "
+                 "(Corrochano 2015, Moroney 2016, Cameron 2020). The AI operator is the finishing touch: it uses the "
+                 "model to choose a recipe."), unsafe_allow_html=True)
 
 VIEWS = ["Plant", "Theory", "Trends", "Packed bed", "Lab notebook", "AI operator", "Presenter", "Engineering notes"]
 view = st.segmented_control("View", VIEWS, default="Plant", key="view", label_visibility="collapsed") or "Plant"
@@ -181,21 +185,24 @@ if view == "Packed bed":
         st.markdown("##### Ergun chart: friction factor vs bed Reynolds number")
         Re = np.logspace(-2, 4, 200)
         fig = go.Figure()
+        fig.add_vrect(x0=pb.C15_RE_RANGE[0], x1=pb.C15_RE_RANGE[1], fillcolor=COLORS["coffee"], opacity=0.10, line_width=0)
         fig.add_scatter(x=Re, y=pb.ergun_curve(Re), name="Ergun: 150/Re_b + 1.75", line=dict(color=COLORS["coffee"], width=3))
-        fig.add_scatter(x=Re, y=150 / Re, name="viscous limit (Kozeny–Carman)", line=dict(color=COLORS["water"], dash="dash"))
-        fig.add_scatter(x=Re, y=np.full_like(Re, 1.75), name="inertial limit (Burke–Plummer)", line=dict(color=COLORS["warn"], dash="dash"))
+        fig.add_scatter(x=Re, y=150 / Re, name="viscous limit (Kozeny–Carman)", line=dict(color=COLORS["water"], dash="dash", width=2))
+        fig.add_scatter(x=Re, y=np.full_like(Re, 1.75), name="inertial limit (Burke–Plummer)",
+                        line=dict(color=COLORS["warn"], dash="dash", width=2))
         for b, sym in zip(pb.brewer_points(plg, T_brew_end), ["diamond", "square", "circle"]):
             live = b["name"].endswith("(live)")
-            fig.add_scatter(x=[b["Re_b"]], y=[b["f_p"]], mode="markers", name=b["name"],
-                            marker=dict(symbol=sym, size=16 if live else 12, color=COLORS["ok"] if live else COLORS["grey"],
-                                        line=dict(color="#0d1117", width=1)))
-        fig.add_vrect(x0=pb.C15_RE_RANGE[0], x1=pb.C15_RE_RANGE[1], fillcolor=COLORS["coffee"], opacity=0.12, line_width=0)
-        fig.add_scatter(x=[None], y=[None], mode="markers", name="Re_b measured in real coffee beds (Corrochano 2015)",
-                        marker=dict(symbol="square", size=12, color=COLORS["coffee"], opacity=0.35))
-        fig.update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-2, 4], yaxis_range=[0, 4],
-                          xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)",
-                          legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                          margin=dict(l=60, r=20, t=20, b=150), height=470)
+            fig.add_scatter(x=[b["Re_b"]], y=[b["f_p"]], mode="markers+text", text=[f"  {b['name'].replace(' (live)', '')}"],
+                            textposition="middle right", textfont=dict(size=14, color=INK if live else MUTED), showlegend=False,
+                            marker=dict(symbol=sym, size=17 if live else 13, color=COLORS["ok"] if live else COLORS["grey"],
+                                        line=dict(color=INK, width=1)))
+        fig.add_annotation(x=np.log10(0.4), y=3.85, text="Re_b measured in<br>real coffee beds", showarrow=False,
+                           font=dict(size=12, color=MUTED))
+        log_axis(fig, "x", -2, 4)
+        log_axis(fig, "y", 0, 4)
+        fig.update_layout(xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="friction factor f_p (-)",
+                          margin=dict(l=70, r=20, b=60), height=500)
+        top_legend(fig, 3)
         st.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
         st.caption("Every brewer sits far left, where the viscous term dominates, so pressure drop ∝ μu/d². "
                    "Even espresso at 9 bar has Re_b ≈ 0.16: 9 bar, still laminar. "
@@ -205,17 +212,22 @@ if view == "Packed bed":
         st.markdown("##### Check against measured coffee beds (Corrochano 2015)")
         rows = pd.DataFrame(pb.corrochano_check())
         fig = go.Figure()
-        for rho_b, sym in zip([360, 400, 480], ["circle", "square", "triangle-down"]):
+        for rho_b, sym, col in zip([360, 400, 480], ["circle", "square", "triangle-down"],
+                                   [COLORS["coffee"], COLORS["water"], COLORS["ai"]]):
             r = rows[rows.rho_bulk == rho_b]
-            fig.add_scatter(x=r.d32_um, y=r.C_eff, mode="markers", name=f"measured, packed to {rho_b} kg/m³",
-                            marker=dict(symbol=sym, size=11, color=COLORS["coffee"]),
-                            error_y=dict(type="data", array=r.C_eff_sd, color=COLORS["grey"]))
-        fig.add_scatter(x=[70, 140], y=[150, 150], mode="lines", name="Ergun's constant, 150", line=dict(color=COLORS["water"], dash="dash"))
-        fig.add_scatter(x=[70, 140], y=[180, 180], mode="lines", name="Carman's constant, 180", line=dict(color=COLORS["grey"], dash="dot"))
-        fig.update_layout(yaxis_type="log", yaxis_range=[2, np.log10(5000)], xaxis_range=[70, 140],
-                          xaxis_title="Sauter diameter d₃₂ (µm)", yaxis_title="constant that fits the data, C_eff (-)",
-                          legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                          margin=dict(l=60, r=20, t=20, b=150), height=470)
+            fig.add_scatter(x=r.d32_um, y=r.C_eff, mode="markers", name=f"{rho_b} kg/m³",
+                            marker=dict(symbol=sym, size=13, color=col, line=dict(color="white", width=1)),
+                            error_y=dict(type="data", array=r.C_eff_sd, color=col, thickness=1.5, width=5))
+        fig.add_scatter(x=[70, 140], y=[150, 150], mode="lines", showlegend=False, line=dict(color=COLORS["water"], dash="dash", width=2))
+        fig.add_scatter(x=[70, 140], y=[180, 180], mode="lines", showlegend=False, line=dict(color=COLORS["grey"], dash="dot", width=2))
+        fig.add_annotation(x=72, y=np.log10(150), text="Ergun, 150", showarrow=False, xanchor="left", yanchor="top",
+                           font=dict(size=13, color=COLORS["water"]))
+        fig.add_annotation(x=72, y=np.log10(180), text="Carman, 180", showarrow=False, xanchor="left", yanchor="bottom",
+                           font=dict(size=13, color=COLORS["grey"]))
+        log_axis(fig, "y", 2, np.log10(5000), values=[100, 200, 500, 1000, 2000, 5000])
+        fig.update_layout(xaxis_range=[70, 140], xaxis_dtick=10, xaxis_title="Sauter diameter d₃₂ (µm)",
+                          yaxis_title="fitted constant C_eff (-)", margin=dict(l=70, r=20, b=60), height=500)
+        top_legend(fig, 3, "measured beds, packed to")
         st.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
         st.caption(f"Each measured permeability, turned round into the viscous constant it implies: C_eff = d_s²ε³/(k(1−ε)²). "
                    f"Ergun says 150. Espresso beds need {rows.C_eff.min():.0f}–{rows.C_eff.max():.0f}, so Ergun over-predicts "
@@ -232,13 +244,15 @@ if view == "Packed bed":
         figs[0].add_scatter(x=b["u"], y=b["dPdL"], name=b["label"], line=dict(color=col, width=3))
         figs[1].add_scatter(x=b["Re_b"], y=b["f_p"], name=b["label"], mode="markers",
                             marker=dict(symbol=sym, size=size, color=col, line=dict(width=2, color=col)))
-    figs[0].update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-4, 0], yaxis_range=[1, 10],
-                          xaxis_title="superficial velocity u (m/s)", yaxis_title="pressure gradient ΔP/L (Pa/m)")
-    figs[1].update_layout(xaxis_type="log", yaxis_type="log", xaxis_range=[-2, 3.5], yaxis_range=[0, 4],
-                          xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="bed friction factor f_p (-)")
+    log_axis(figs[0], "x", -4, 0)
+    log_axis(figs[0], "y", 1, 10, values=[1e2, 1e4, 1e6, 1e8, 1e10])
+    figs[0].update_layout(xaxis_title="superficial velocity u (m/s)", yaxis_title="pressure gradient ΔP/L (Pa/m)")
+    log_axis(figs[1], "x", -2, 3.5)
+    log_axis(figs[1], "y", 0, 4)
+    figs[1].update_layout(xaxis_title="bed Reynolds number Re_b (-)", yaxis_title="friction factor f_p (-)")
     for f in figs:
-        f.update_layout(legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                        margin=dict(l=60, r=20, t=20, b=130), height=400)
+        f.update_layout(margin=dict(l=70, r=20, b=60), height=440)
+        top_legend(f, 3)
     c1.plotly_chart(card(figs[0]), width="stretch", theme=None, config=CHART_CONFIG)
     c2.plotly_chart(card(figs[1]), width="stretch", theme=None, config=CHART_CONFIG)
     st.caption("Left: in dimensional form, three beds that differ in grain size and porosity give three separate curves. "
@@ -253,17 +267,18 @@ if view == "Packed bed":
     fig.add_scatter(x=sw["grind_um"], y=sw["force_no_fines"], name="no fines", line=dict(color=COLORS["water"], dash="dash"))
     fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
     fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="plunge force F_p (N)", yaxis_rangemode="tozero",
-                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                      margin=dict(l=60, r=20, t=20, b=120), height=380)
+                      margin=dict(l=70, r=20, b=60), height=400)
+    top_legend(fig, 2)
     c1.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
     fig = go.Figure()
     fig.add_hrect(y0=100 * ph.EY_RANGE[0], y1=100 * ph.EY_RANGE[1], fillcolor=COLORS["ok"], opacity=0.12, line_width=0)
-    fig.add_scatter(x=sw["grind_um"], y=[100 * e for e in sw["EY"]], name="extraction yield EY", line=dict(color=COLORS["coffee"], width=3))
+    fig.add_scatter(x=sw["grind_um"], y=[100 * e for e in sw["EY"]], name="extraction yield EY (model)", line=dict(color=COLORS["coffee"], width=3))
     fig.add_vline(x=grind, line=dict(color=COLORS["grey"], dash="dot"))
     fig.update_layout(xaxis_title="grind size d (µm)", yaxis_title="extraction yield EY (%)",
-                      yaxis_range=[5, 32],
-                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                      margin=dict(l=60, r=20, t=20, b=120), height=380)
+                      yaxis_range=[5, 32], margin=dict(l=70, r=20, b=60), height=400)
+    fig.add_annotation(x=1, xref="paper", xanchor="right", y=100 * ph.EY_RANGE[1], yanchor="bottom", showarrow=False,
+                       text="SCA target 18–22 %", font=dict(size=12, color=COLORS["ok"]))
+    top_legend(fig, 2)
     c2.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
     i_lo, i_hi = 0, len(sw["grind_um"]) - 1
     st.caption(f"Going from {sw['grind_um'][i_hi]:.0f} to {sw['grind_um'][i_lo]:.0f} µm changes extraction from "
@@ -279,12 +294,13 @@ if view == "Packed bed":
     for g, col in zip(summ, [COLORS["water"], COLORS["ok"], COLORS["warn"], COLORS["coffee"]]):
         c = pb.C20["psd"][g]
         fig.add_scatter(x=c["d_um"], y=c["vol_pct"], mode="lines", line=dict(color=col, width=2),
-                        name=f"setting {g}: d₃₂ {1e6 * summ[g]['d32']:.0f} µm, {100 * summ[g]['fines_volume']:.0f} % fines")
+                        name=f"{g}: {1e6 * summ[g]['d32']:.0f} µm, {100 * summ[g]['fines_volume']:.0f} % fines")
     fig.add_vline(x=100, line=dict(color=COLORS["grey"], dash="dot"))
-    fig.update_layout(xaxis_type="log", xaxis_range=[0, np.log10(2000)], yaxis_range=[0, 22],
-                      xaxis_title="particle diameter (µm)", yaxis_title="volume percent (%)",
-                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                      margin=dict(l=60, r=20, t=20, b=150), height=430)
+    log_axis(fig, "x", 0, np.log10(2000))
+    fig.update_layout(yaxis_range=[0, 22], xaxis_title="particle diameter (µm)", yaxis_title="volume percent (%)",
+                      margin=dict(l=70, r=20, b=60), height=470)
+    fig.add_annotation(x=2, y=21, text="fines | boulders", showarrow=False, font=dict(size=12, color=MUTED))
+    top_legend(fig, 4, "grinder setting: d₃₂, fines")
     c1.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
     c1.caption(f"Measured espresso grinds (Cameron et al. 2020, Fig. 2B; finer setting = smaller number). Two families: "
                f"fines below 100 µm and boulders. Grinding finer adds fines of the same size. Fines are "
@@ -300,12 +316,11 @@ if view == "Packed bed":
     fig.add_scatter(x=c20["grind_setting"], y=c20["EY_pct"], mode="lines+markers", name="measured EY (±1 sd)",
                     line=dict(color=COLORS["coffee"], dash="dash"), marker=dict(size=11),
                     error_y=dict(type="data", array=c20["EY_sd_pct"], color=COLORS["grey"]))
-    fig.add_scatter(x=[None], y=[None], mode="markers", name="finer than 1.7: partly clogged, uneven flow",
+    fig.add_scatter(x=[None], y=[None], mode="markers", name="finer than 1.7: partly clogged",
                     marker=dict(symbol="square", size=12, color=COLORS["alarm"], opacity=0.3))
     fig.update_layout(xaxis_range=[1.0, 2.4], yaxis_range=[20, 23.6], xaxis_title="grinder setting (smaller = finer)",
-                      yaxis_title="extraction yield EY (%)",
-                      legend=dict(orientation="h", x=0, y=-0.25, xanchor="left", yanchor="top"),
-                      margin=dict(l=60, r=20, t=20, b=150), height=430)
+                      yaxis_title="extraction yield EY (%)", margin=dict(l=70, r=20, b=60), height=470)
+    top_legend(fig, 2)
     c2.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
     c2.caption("Measured espresso extraction (Cameron et al. 2020, Fig. 4B, 6 bar). A uniform-bed model, like the grind "
                "explorer above, says finer always extracts more. The data agree down to setting 1.7, then extraction falls: "
@@ -323,8 +338,10 @@ if view == "Packed bed":
                         line=dict(color=COLORS["ok"]))
         fig.add_scatter(x=d_f[~np.array(ok)] * 1e6, y=[r["t_settle"] for r, o in zip(res, ok) if not o],
                         name="Stokes invalid", line=dict(color=COLORS["alarm"], dash="dot"))
-        fig.update_layout(xaxis_title="particle diameter (µm)", yaxis_title="time to settle 8 cm (s)", yaxis_type="log",
-                          yaxis_range=[np.log10(0.5), np.log10(3e4)], showlegend=True)
+        log_axis(fig, "y", np.log10(0.5), np.log10(3e4))
+        fig.update_layout(xaxis_title="particle diameter (µm)", yaxis_title="time to settle 8 cm (s)",
+                          margin=dict(l=70, r=20, b=60), height=420)
+        top_legend(fig, 2)
         st.plotly_chart(card(fig), width="stretch", theme=None, config=CHART_CONFIG)
 
 # ---- Lab notebook
