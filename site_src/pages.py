@@ -114,7 +114,10 @@ Full Write/Say derivations: <a href="derivations.html">derivations</a> · <a hre
 <p>When the plunger of a French press goes down, the brewed liquid flows up through the mesh and the cake of wet grounds trapped under it.
 That cake is a packed bed. In the plunger's frame, liquid passes through it at the superficial velocity
 \(u = V_l/(A\,t_p)\), with \(V_l\) the liquid volume pushed through (m³), \(A\) the press cross-section (m²) and \(t_p\) the plunge time (s).
-With the model's defaults (\(V_l = 2.3\times10^{{-4}}\ \mathrm{{m^3}}\), 85 mm press, \(t_p = 20\ \mathrm{{s}}\)), \(u \approx 2\ \mathrm{{mm/s}}\).</p>
+With the model's defaults (\(V_l = 2.3\times10^{{-4}}\ \mathrm{{m^3}}\), 85 mm press, \(t_p = 20\ \mathrm{{s}}\)), \(u \approx 2\ \mathrm{{mm/s}}\). The cake length follows from the dose:
+\(L = m_c/(\rho_b A)\), with \(m_c\) the dry coffee mass (kg) and \(\rho_b\) the cake bulk density (kg/m³); 15 g at 400 kg/m³ in an 85 mm press gives \(L \approx 6.6\ \mathrm{{mm}}\).
+The plunge force is the fluid resistance of cake and mesh in series, \(F = (\Delta p_\text{{cake}} + \mu u R_m)\,A\), with \(R_m\) the mesh resistance (1/m).
+It leaves out seal friction, buoyancy and acceleration, so it is a lower bound on the force a hand feels. At 800 µm the assumed mesh carries {100 * n['mesh_share800']:.0f} % of \(\Delta p\).</p>
 
 <h2 id="pi">1 · Dimensional analysis</h2>
 <p>The pressure gradient \(\Delta p/L\) (Pa/m) across a bed depends on the superficial velocity \(u\) (m/s), the grain diameter \(d_s\) (m),
@@ -190,6 +193,7 @@ diffusion time matches Moroney's fine grind (41 s vs 42.2 s) but not the coarse 
 Espresso-style beds 0.11–0.33 (Corrochano); French press 0.53 (Wadsworth). See the sensitivity chart.</td></tr>
 <tr><td>Mesh resistance \(R_m\)</td><td>\(2\times10^8\ \mathrm{{m^{{-1}}}}\) (assumed)</td><td>{100 * n['mesh_share800']:.0f} % of the default pressure drop; not measured</td></tr>
 <tr><td>Fines</td><td>15 % by mass at 30 µm, same at every grind (assumed)</td><td>Bimodality is measured (Uman, Cameron); a French-press fines fraction is not published</td></tr>
+<tr><td>Where Ergun stops matching coffee</td><td>everywhere it has been tested</td><td>Over-predicts permeability {n['c15_min']:.1f}–{n['c15_max']:.0f}× (Corrochano, espresso-style) and {w['ratio_ergun']:.0f}× (Wadsworth, French press). Leading candidates: porosity, polydispersity, swelling, consolidation</td></tr>
 <tr><td>Grain shape</td><td>\(\Phi_s = 0.75\)</td><td>Corrochano, image analysis</td></tr>
 <tr><td>Wall effects</td><td>none</td><td>Press diameter / grain ≈ 690</td></tr>
 <tr><td>Bed</td><td>fixed thickness, no compaction during the plunge</td><td>Not tested</td></tr>
@@ -250,6 +254,7 @@ Model versions for the October sessions were not recorded in the plan files, so 
 <li>Planned to replace CoolProp because "it does not run in the browser". Muse pointed out it does; confirmed in Pyodide's package recipes (CoolProp 7.2.0).</li>
 <li>Planned the stlite test on the wrong Pyodide version (0.29). A reviewer asked; the stlite changelog shows 314.0.3.</li>
 <li>The master briefing said Buckingham Pi gives "two groups". Reviewers corrected it to three (porosity is the third); the app already said three.</li>
+<li>Why not a Rust/WebAssembly calculator like the course example? It would be a second codebase that must agree with the tested Python model. The static explorer gives the same instant, install-free demo from the Python numbers themselves.</li>
 <li>Critics also made mistakes: Muse quoted app numbers that were never in the code and withdrew them; one critic said no French-press force measurement exists, but Wadsworth et al. 2021 does.</li>
 </ul>
 """
@@ -274,7 +279,7 @@ def comparison(ctx):
 <tr><td>2</td><td>ChatGPT</td><td>Plan v1 + Muse's critique</td><td>Yes; said what it could not verify</td><td>Static explorer first, claim labels, sensitivity example, plunge-force definition</td></tr>
 <tr><td>3</td><td>Grok, ChatGPT</td><td>Plan v4</td><td>Yes</td><td>"Validated" → "compared with experimental data"; separate critique and implementation comparisons; release checklist</td></tr>
 <tr><td>4</td><td>Muse and others</td><td>Plan v5</td><td>Yes</td><td>Fresh sessions, hidden tests, two freezes, tolerances with units</td></tr>
-<tr><td>Research</td><td>ChatGPT (reply B); Muse and Grok (A and C, order unknown)</td><td>Master briefing</td><td>Yes</td><td>Found Wadsworth et al. 2021 (two of three); three Pi groups; porosity/bulk-density link. One reply wrongly said no force measurement exists</td></tr>
+<tr><td>Research</td><td>Grok (A), ChatGPT (B), Muse (C, by elimination)</td><td>Master briefing</td><td>Yes</td><td>Found Wadsworth et al. 2021 (two of three); three Pi groups; porosity/bulk-density link. One reply wrongly said no force measurement exists</td></tr>
 </table></div>
 <h3>What we noticed</h3>
 <ul><li>Models shown another model's critique mostly repeated it, unverified claims included. Models given only the plan produced new, checkable points.</li>

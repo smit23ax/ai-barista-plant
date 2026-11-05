@@ -87,3 +87,19 @@ alex pasted a "ChatGPT Independent Review" (2026-11-05). It matches **reply B** 
 So **B = ChatGPT**, and A and C are Muse and Grok in an unknown order.
 
 It adds no new points. The cake-vs-mesh split, the porosity and fines sensitivity, and the fixed-geometry limitation are already accepted as #3, #4 and #19. On the site the cake and mesh split is shown in the explorer (Δp cake vs Δp mesh), and the sensitivity chart covers ε, R_m and w_f.
+
+## 6. Update 16:25: which model wrote reply A
+
+alex pasted Grok's reply, and it matches **reply A**: Corrochano "0.09–0.19" and "12–32 N". So **A = Grok, B = ChatGPT, and C = Muse** (Muse by elimination).
+
+Grok's points and decisions:
+
+| Point | Decision |
+|---|---|
+| Write u and the cake length L = m_c/(ρ_b A) with SI units before the first equation | **Accept.** Added to the Packed bed page. |
+| Label model forces as a lower bound (fluid only) | **Accept.** Added. Note that Wadsworth also attributes their force mainly to flow through the pack; they neglected friction and mesh, and found the force without coffee "substantially less". So Grok's claim that their numbers *include* seal friction is only partly right. |
+| Mesh share visible near the Ergun equation | **Accept.** Added. |
+| Validity-table row "where Ergun stops matching coffee" | **Accept.** Added, with the 1.9–16× and 48× factors. |
+| One sentence on why there is no Rust/WASM calculator | **Accept.** Added to How it was made. |
+| Corrochano porosity 0.09–0.19 | **Reject.** It conflicts with our digitized 0.11–0.33 from the paper's Fig. 13. |
+| Ergun valid to Re_p < 1000 | **Not used.** A different reviewer said 500; neither was verified, and the project sits at Re_b ≈ 1 anyway. |
