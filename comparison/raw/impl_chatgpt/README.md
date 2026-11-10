@@ -1,6 +1,6 @@
 # Implementation 2: ChatGPT
 
-- Run: 2026-11-10 by alex in ChatGPT. Model name shown in the chat and whether the chat was fresh: **pending from alex**.
+- Run: 2026-11-10 by alex in ChatGPT. Model: **GPT-6** (alex, 2026-11-10: the chat said "You're chatting with GPT-6 by OpenAI"). Fresh chat: **yes** (alex confirmed a new chat).
   alex uploaded the three files (`ergun_plunge.py`, `test_ergun_plunge.py`, `sweep_page.py`). They are kept here unedited,
   together with the run commands from the end of the reply (`pip install numpy scipy CoolProp plotly pytest`,
   `pytest -v test_ergun_plunge.py`, `python sweep_page.py`). The reply's prose was not pasted.

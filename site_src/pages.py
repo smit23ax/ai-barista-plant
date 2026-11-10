@@ -303,7 +303,7 @@ fines fixed at 15 %) are kept private, with only their SHA-256 fingerprint publi
 ("why can Ergun disagree with measured coffee-bed permeability?") is scored out of 10 on its own.</p>
 {impl_block}
 <h3>Results</h3>
-<div class="tablewrap"><table><tr><th>Criterion</th><th>Claude Opus 5.5, first = final</th><th>ChatGPT, first response</th><th>ChatGPT, final (1 follow-up)</th></tr>
+<div class="tablewrap"><table><tr><th>Criterion</th><th>Claude Opus 5.5, first = final</th><th>ChatGPT (GPT-6), first response</th><th>ChatGPT (GPT-6), final (1 follow-up)</th></tr>
 <tr><td>Physics (40)</td><td>40 · 26/26 hidden cases</td><td>40 · 26/26</td><td>40 · 26/26 (code unchanged)</td></tr>
 <tr><td>Frozen tests (25)</td><td>25</td><td>10 · one of its own tests failed (a threshold too tight)</td><td>25</td></tr>
 <tr><td>SI units and symbols (15)</td><td>15</td><td>15</td><td>15</td></tr>
@@ -313,7 +313,7 @@ fines fixed at 15 %) are kept private, with only their SHA-256 fingerprint publi
 <tr><td>Explanation task (10)</td><td>9 · one arithmetic slip (porosity 0.40 → 0.30 changes K by 3.2×, not 2.6×)</td><td colspan="2">10 · its claims about Corrochano 2015 checked against the paper</td></tr>
 </table></div>
 <ul><li><strong>Both models got the physics right on the first try.</strong> All the differences were in the engineering around it: a test that had never been run, and a legend placed over the title.</li>
-<li><strong>The conditions were not identical.</strong> Claude ran in a sandbox where it could execute its own tests before answering. ChatGPT ran in a chat window, and used web search for the explanation. Claude used no tools for the explanation.</li>
+<li><strong>The conditions were not identical.</strong> Claude ran in a sandbox where it could execute its own tests before answering. ChatGPT (GPT-6, as the chat stated; a new chat) ran in a chat window, and used web search for the explanation. Claude used no tools for the explanation.</li>
 <li>Every file is kept unedited, with its scoring evidence and screenshots: <a href="{ctx["REPO"]}/tree/main/comparison/raw/impl_claude_opus">Claude</a> · <a href="{ctx["REPO"]}/tree/main/comparison/raw/impl_chatgpt">ChatGPT</a>. The scorer is <code>comparison/score.py</code>.</li></ul>
 """
 
