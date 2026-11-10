@@ -16,6 +16,8 @@ from plant import steps as presenter_steps
 from plant import calibration as cal
 from plant import standards
 from plant import packed_bed as pb
+from plant.known import known_variables
+
 from plotly.subplots import make_subplots
 from plant.style import CHART_CONFIG, COLORS, CSS, INK, MUTED, card, goal, header, label, log_axis, pfd, top_legend
 
@@ -25,6 +27,14 @@ C2K = 273.15
 
 
 # ---------------------------------------------------------------- cached calculations
+@st.cache_data(ttl=86400)
+def known_table():
+    return known_variables()
+
+
+KNOWN = known_table()
+
+
 @st.cache_data(max_entries=256, ttl=3600)
 def simulate(grind_um, T_water_C, steep_s, ratio, m_coffee_g, preheated):
     sim = ph.brew(grind_um * 1e-6, T_water_C + C2K, steep_s, m_coffee=m_coffee_g / 1000,
@@ -513,6 +523,9 @@ if view == "Presenter":
             d = unit["dof"]
             st.markdown("**Unknowns:** " + "; ".join(d["unknowns"]) + "  \n**Equations:** " + "; ".join(d["equations"])
                         + "  \n**Specified:** " + ", ".join(d["specified"]) + f"  \n**Result:** {d['result']}")
+            st.markdown("**Known variables** (standard recipe; read from the model's constants and defaults):")
+            st.dataframe(pd.DataFrame(KNOWN[unit_name], columns=["Symbol", "Meaning", "Value", "SI unit", "Source"]),
+                         hide_index=True, width="stretch")
         with st.expander("Physical checks"):
             for c in unit["checks"]:
                 st.markdown(f"- {c}")

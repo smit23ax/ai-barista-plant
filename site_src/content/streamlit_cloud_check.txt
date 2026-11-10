@@ -1,0 +1,1 @@
+2026-11-10: alex's screenshot of the live Streamlit Cloud app (Plant view, default recipe) shows TDS 1.10 %, EY 17.9 %, plunge force 2.7 N and end-of-steep 67.8 °C, the values the current code computes. The older browser-report values (TDS 1.25 %, EY 19.4 %) no longer appear, so the app runs current code.
