@@ -4,7 +4,10 @@ show the same Write / Say steps. Render to HTML with:  node docs/render_katex.js
 import html
 from pathlib import Path
 
+from plant.known import known_variables
 from plant.steps import SYMBOLS, UNITS
+
+KNOWN = known_variables()
 
 out = ['<h1>AI Barista Plant: derivations</h1>',
        '<p class="lead">Every unit in the professor\'s format: a numbered <b>Write</b> line (the equation) and a '
@@ -23,6 +26,10 @@ for i, (name, u) in enumerate(UNITS.items(), 1):
                f'<li><b>Equations:</b> {html.escape("; ".join(d["equations"]))}</li>'
                f'<li><b>Specified:</b> {html.escape(", ".join(d["specified"]))}</li>'
                f'<li><b>Result:</b> {html.escape(d["result"])}</li></ul>')
+    out.append('<p><b>Known variables</b> (standard recipe, read from the model\'s constants and defaults):</p>'
+               '<table><tr><th>Symbol</th><th>Meaning</th><th>Value</th><th>SI unit</th><th>Source</th></tr>'
+               + "".join('<tr>' + "".join(f'<td>{html.escape(c)}</td>' for c in row) + '</tr>' for row in KNOWN[name])
+               + '</table>')
     out.append('<h3>Steps</h3>')
     for k, st in enumerate(u["steps"], 1):
         out.append(f'<p><b>{k}. {html.escape(st["title"])}</b></p>'
