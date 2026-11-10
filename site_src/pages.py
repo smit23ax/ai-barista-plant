@@ -263,7 +263,7 @@ Model versions for the October sessions were not recorded in the plan files, so 
 # ------------------------------------------------------------------ Model comparison
 def comparison(ctx):
     impl = ctx["c"]["implementations"]
-    impl_block = todo("Run the frozen implementation task in a fresh ChatGPT chat (and optionally Muse and Grok), and commit the raw outputs as <code>comparison/raw/impl_&lt;model&gt;.md</code>.") if len(impl) < 2 else "<p>Implementations: " + ", ".join(p.name for p in impl) + "</p>"
+    impl_block = todo("Run the frozen implementation task in a fresh ChatGPT chat (and optionally Muse and Grok), and commit the raw outputs as <code>comparison/raw/impl_&lt;model&gt;/</code>.") if len(impl) < 2 else ""
     R = ctx["REPO"] + "/blob/main/comparison/"
     return rf"""
 <h1>Comparing AI models</h1>
@@ -294,14 +294,27 @@ def comparison(ctx):
 and at most three responses. Primary: a fresh Claude Opus 5.5 session and ChatGPT; optional: Muse and Grok. Hidden tests (inputs 300, 455, 500, 735, 800, 1000, 1200 µm at 333.15, 341 and 353.15 K,
 fines fixed at 15 %) are kept private, with only their SHA-256 fingerprint published before any model runs.</p>
 <div class="tablewrap"><table><tr><th>Criterion</th><th>Weight</th><th>Pass bar</th></tr>
-<tr><td>Physics correctness</td><td>40 %</td><td>\(\Delta p, K, F\) within ±1 %; \(\mathrm{{Re}}_b, f_p\) within ±0.5 %</td></tr>
-<tr><td>Frozen tests</td><td>25 %</td><td>All hidden tests pass; none skipped</td></tr>
+<tr><td>Physics correctness</td><td>40 %</td><td>26 hidden cases: \(\Delta p, K, F\) within ±1 %; \(\mathrm{{Re}}_b, f_p\) within ±0.5 %</td></tr>
+<tr><td>Frozen tests</td><td>25 %</td><td>The model’s own test file runs and passes (15); invalid inputs raise <code>ValueError</code> (10)</td></tr>
 <tr><td>SI units and symbols</td><td>15 %</td><td>Every symbol defined with units</td></tr>
 <tr><td>Rendering</td><td>10 %</td><td>1400 px and 390 px, no overlaps</td></tr>
 <tr><td>Reproducibility</td><td>10 %</td><td>Runs from a clean checkout</td></tr></table></div>
 <p class="muted">First and final responses are both scored. Lines of code and time are reported, not scored. A separate explanation task
 ("why can Ergun disagree with measured coffee-bed permeability?") is scored out of 10 on its own.</p>
 {impl_block}
+<h3>Results</h3>
+<div class="tablewrap"><table><tr><th>Criterion</th><th>Claude Opus 5.5, first = final</th><th>ChatGPT, first response</th><th>ChatGPT, final (1 follow-up)</th></tr>
+<tr><td>Physics (40)</td><td>40 · 26/26 hidden cases</td><td>40 · 26/26</td><td>40 · 26/26 (code unchanged)</td></tr>
+<tr><td>Frozen tests (25)</td><td>25</td><td>10 · one of its own tests failed (a threshold too tight)</td><td>25</td></tr>
+<tr><td>SI units and symbols (15)</td><td>15</td><td>15</td><td>15</td></tr>
+<tr><td>Rendering (10)</td><td>10</td><td>5 · legend over the title at both widths</td><td>10</td></tr>
+<tr><td>Reproducibility (10)</td><td>10</td><td>10</td><td>10</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>100</strong></td><td><strong>80</strong></td><td><strong>100</strong></td></tr>
+<tr><td>Explanation task (10)</td><td>9 · one arithmetic slip (porosity 0.40 → 0.30 changes K by 3.2×, not 2.6×)</td><td colspan="2">10 · its claims about Corrochano 2015 checked against the paper</td></tr>
+</table></div>
+<ul><li><strong>Both models got the physics right on the first try.</strong> All the differences were in the engineering around it: a test that had never been run, and a legend placed over the title.</li>
+<li><strong>The conditions were not identical.</strong> Claude ran in a sandbox where it could execute its own tests before answering. ChatGPT ran in a chat window, and used web search for the explanation. Claude used no tools for the explanation.</li>
+<li>Every file is kept unedited, with its scoring evidence and screenshots: <a href="{ctx["REPO"]}/tree/main/comparison/raw/impl_claude_opus">Claude</a> · <a href="{ctx["REPO"]}/tree/main/comparison/raw/impl_chatgpt">ChatGPT</a>. The scorer is <code>comparison/score.py</code>.</li></ul>
 """
 
 
