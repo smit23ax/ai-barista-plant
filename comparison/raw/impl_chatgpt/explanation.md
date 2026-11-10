@@ -28,11 +28,11 @@ Is this conversation helpful so far?
 
 ## Run notes
 
-- Model shown in the chat: **pending from alex**.
-- Fresh chat: **pending confirmation from alex**.
+- Model: **GPT-6**, as the chat stated (reported by alex).
+- Fresh chat: **yes** (confirmed by alex).
 - Tools: ChatGPT used web search (the citation chips). The Claude run used no tools, so the two runs are not equal on this point.
 
-## Score (RUBRIC.md): 10 / 10 (provisional until the run notes are confirmed)
+## Score (RUBRIC.md): 10 / 10
 
 | Criterion | Points | Note |
 |---|---|---|
