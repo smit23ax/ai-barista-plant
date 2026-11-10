@@ -4,7 +4,9 @@
   alex uploaded the three files (`ergun_plunge.py`, `test_ergun_plunge.py`, `sweep_page.py`). They are kept here unedited,
   together with the run commands from the end of the reply (`pip install numpy scipy CoolProp plotly pytest`,
   `pytest -v test_ergun_plunge.py`, `python sweep_page.py`). The reply's prose was not pasted.
-- Follow-ups used: none so far. This is the **first response**.
+- Follow-ups used: one, the fixed text "Please fix any errors and give the complete final files again." The first response's files are
+  in this folder; the final response's files are in `final/` (alex uploaded them as a zip and as single files; both copies are identical).
+  The final response changed only the test thresholds and the legend placement; `ergun_plunge.py` is byte-identical.
 - Explanation task: `explanation.md`.
 
 ## Score, first response (RUBRIC.md, frozen before the run): 80 / 100
@@ -19,3 +21,14 @@
 | **Total** | **80 / 100** | |
 
 Reported, not scored: 189 lines over the three files; sweep.html embeds plotly.js inline (4.8 MB, works offline).
+
+## Score, final response (after one fixed follow-up): 100 / 100
+
+| Criterion | Points | Evidence |
+|---|---|---|
+| Physics correctness | 40 / 40 | `ergun_plunge.py` unchanged; 26/26 hidden cases |
+| Frozen tests | 25 / 25 | Own tests: 12 passed (the limit check now uses plunge_time 2e7 s); invalid inputs raise ValueError |
+| SI units and symbols | 15 / 15 | Unchanged |
+| Rendering | 10 / 10 | `final/impl_chatgpt_final_sweep_desk.png` and `..._phone.png`: legend moved below the plots, no overlap, no horizontal scroll |
+| Reproducibility | 10 / 10 | Same clean venv: 12 passed, sweep.html written |
+| **Total** | **100 / 100** | |
