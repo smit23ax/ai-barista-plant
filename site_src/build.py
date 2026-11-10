@@ -17,7 +17,7 @@ from pathlib import Path
 
 import plotly.io as pio
 
-from site_src import analysis, explorer, pages
+from site_src import analysis, explorer, pages, stlite_page
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "site"
@@ -96,6 +96,7 @@ def build():
     plotly_js = Path(pio.__file__).resolve().parents[1] / "package_data" / "plotly.min.js"
     shutil.copy(plotly_js, OUT / "plotly.min.js")
     (OUT / ".nojekyll").write_text("")
+    stlite_page.write(OUT / "app" / "index.html")   # experimental in-browser app; linked only after it passes the speed limits
     for doc in ["derivations.html", "study_guide.html"]:
         shutil.copy(ROOT / "docs" / doc, OUT / doc)
 

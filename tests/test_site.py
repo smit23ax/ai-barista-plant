@@ -55,3 +55,15 @@ def test_sensitivity_default_row_equals_base():
     s = analysis.sensitivity()
     base_rows = [r for r in s["rows"] if (r["input"].startswith("porosity") and r["value"] == 0.40)]
     assert np.isclose(base_rows[0]["force"], s["base"])
+
+
+def test_stlite_page_embeds_every_app_file():
+    """The in-browser app page carries the repository's app files verbatim, plus the pinned stlite version."""
+    import json
+    import re
+    from site_src import stlite_page
+    html = stlite_page.page()
+    assert f"@stlite/browser@{stlite_page.STLITE_VERSION}/" in html
+    files = json.loads(re.search(r"files: (\{.*\}) \}\, document", html, re.S).group(1))
+    assert files == stlite_page.app_files()
+    assert {"app.py", "plant/physics.py", "data/corrochano2015.json", "plant/benchmark.json"} <= set(files)
