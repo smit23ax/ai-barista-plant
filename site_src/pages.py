@@ -96,8 +96,9 @@ The first open can take about 30 s while the server wakes up.</p>
 just below the SCA ideal box (1.15–1.35 %, 18–22 %). That is on purpose: the AI operator's job is to bring it into the box.</p>
 
 <h2>3 · In-browser app (experimental)</h2>
-<p>A WebAssembly build of the same app (stlite, Pyodide 314) is being tested. It downloads Python into the browser, so first load is slow. It will appear here
-only if it passes the speed limits set in the plan (desktop under 60 s, phone under 90 s, one AI suggestion under 30 s).</p>
+<p>A WebAssembly build of the same app (stlite 1.12.1, Pyodide 314.0.3, CoolProp 7.2.0) runs the repository's code entirely in the browser.
+In our first test it started in about 90 s on a slow test machine and showed the same default results as the server app. It will be linked here
+only if it passes the speed limits set in the plan (desktop under 60 s, phone under 90 s, one AI suggestion under 30 s) on a real laptop and phone.</p>
 """
 
 
