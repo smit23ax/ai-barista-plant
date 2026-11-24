@@ -356,15 +356,16 @@ if view == "Packed bed":
 
 # ---- Lab notebook
 if view == "Lab notebook":
-    st.markdown("#### Lab notebook: every batch you ran")
+    st.markdown("#### Lab notebook: every simulated batch you ran")
     if st.session_state.lab:
         df = pd.DataFrame(st.session_state.lab)
         st.dataframe(df.round(3), width="stretch")
         st.download_button("Download CSV", df.to_csv(index=False), "lab_notebook.csv", "text/csv")
         st.caption(f"Measured TDS includes meter noise (standard deviation {100 * ai.TDS_METER_SD:.2f} % TDS). "
-                   "Measured EY is computed from measured TDS, as in a real lab.")
+                   "Measured EY is computed from measured TDS, as in a real lab. "
+                   "These batches come from the simulated plant, not real brews.")
     else:
-        st.info("No batches yet. Set the setpoints in the control panel and press RUN BATCH.")
+        st.info("No batches yet. Set the setpoints in the control panel and press RUN BATCH (simulated brews).")
 
 # ---- AI operator
 if view == "AI operator":
